@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { Card, Spinner, PageHeader, StatPill, Badge } from '@/components/ui'
 import { fmtTND } from '@/lib/utils'
-import { TrendingUp, Activity, Users, Building2 } from 'lucide-react'
+import { TrendingUp, Activity, Users } from 'lucide-react'
 import { fetchJson } from '@/lib/fetchJson'
 
 function BarChart({ data, formatter = (v: number) => String(v), color = 'var(--accent-blue)' }: {
@@ -41,23 +41,10 @@ export default function AnalyticsPage() {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
-  // Fee Settings State
-  const [feeBps, setFeeBps] = useState<number>(1000)
-  const [feeInput, setFeeInput] = useState<string>('10')
-  const [savingFee, setSavingFee] = useState(false)
-
-
   async function load() {
     setLoading(true)
     const d = await fetchJson('/api/analytics')
     setData(d)
-    
-    // Initialize fee state
-    if (d?.feeBps !== undefined) {
-      setFeeBps(d.feeBps)
-      setFeeInput((d.feeBps / 100).toFixed(1))
-    }
-    
     setLoading(false)
   }
 
@@ -72,27 +59,6 @@ export default function AnalyticsPage() {
 
   const totalRevenue = data?.totalRevenueCents ?? 0
 
-  // Save handler
-  async function saveFee() {
-    setSavingFee(true)
-    const bps = Math.round(parseFloat(feeInput) * 100)
-    if (isNaN(bps) || bps < 0 || bps > 5000) {
-      setSavingFee(false)
-      return
-    }
-    try {
-      await fetch('/api/platform-settings', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'gym_withdraw_fee_bps', value_int: bps })
-      })
-      setFeeBps(bps)
-    } finally {
-      setSavingFee(false)
-    }
-  }
-
-
   return (
     <div className="page-enter">
       <PageHeader title="Analytics" crumb="Analytics" actions={
@@ -102,9 +68,9 @@ export default function AnalyticsPage() {
       {/* Summary KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 20 }}>
         {[
-          { label: 'Total Gyms', value: data?.totalGyms ?? '—', icon: Building2, color: 'var(--accent-blue)' },
           { label: 'Total Users', value: data?.totalUsers ?? '—', icon: Users, color: '#8B5CF6' },
           { label: 'Active Subs', value: data?.activeSubs ?? '—', icon: TrendingUp, color: '#10B981' },
+          { label: 'Churned Users', value: data?.churnedUsers ?? '—', icon: Users, color: '#EF4444' },
           { label: 'Total Check-ins', value: data?.totalCheckins ?? '—', icon: Activity, color: '#F59E0B' },
           { label: 'Total Revenue', value: loading ? '—' : fmtTND(totalRevenue), icon: TrendingUp, color: '#10B981' },
         ].map(kpi => (
@@ -120,34 +86,38 @@ export default function AnalyticsPage() {
         ))}
       </div>
 
-      {/* Fee Settings Section */}
-      <div style={{ marginBottom: 20 }}>
-        <Card>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: 1 }}>
-                WITHDRAWAL FEE RATE
-              </div>
-              <div style={{ fontSize: 24, fontWeight: 700 }}>{(feeBps / 100).toFixed(1)}%</div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                Applied to all new withdrawal requests
-              </div>
+      {/* Plan KPI cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
+        {(data?.planKpis ?? []).map((plan: any) => (
+          <div key={plan.plan_id} className="og-card" style={{ padding: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', fontWeight: 700 }}>
+                {plan.name}
+              </span>
+              <span style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                {plan.billing_period}
+              </span>
             </div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <input
-                type="number"
-                min="0" max="50" step="0.5"
-                value={feeInput}
-                onChange={e => setFeeInput(e.target.value)}
-                style={{ width: 70, padding: '6px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: 13 }}
-              />
-              <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>%</span>
-              <button className="btn btn-primary btn-sm" onClick={saveFee} disabled={savingFee}>
-                {savingFee ? 'Saving…' : 'Save'}
-              </button>
+            <div style={{ fontFamily: 'var(--font-heading)', fontSize: 32, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.03em' }}>
+              {plan.total_subs}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+              <span style={{ color: '#10B981', fontWeight: 700 }}>{plan.active_subs} active</span>
+              {' · '}{fmtTND(plan.price_cents)}/period
             </div>
           </div>
-        </Card>
+        ))}
+      </div>
+
+      {/* Plan 6-month charts */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
+        {(data?.planCharts ?? []).map((plan: any) => (
+          <Card key={plan.plan_id} title={`${plan.name} (${plan.billing_period}) — New Subs / Month`}>
+            {loading ? <Spinner /> : (
+              <BarChart data={plan.data} formatter={(v) => String(v)} color="var(--accent-blue)" />
+            )}
+          </Card>
+        ))}
       </div>
 
 
@@ -173,27 +143,8 @@ export default function AnalyticsPage() {
         </Card>
       </div>
 
-      {/* Plans + Top Gyms */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        <Card title="Subscription Plans">
-          {loading ? <Spinner /> : (
-            <div>
-              {(data?.plans ?? []).map((plan: any) => (
-                <div key={plan.plan_id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 0', borderBottom: '1px solid var(--border)' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>{plan.name}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>{plan.billing_period} · {plan.tokens_per_period}T</div>
-                  </div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#10B981', fontSize: 15 }}>
-                    {fmtTND(plan.price_cents)}
-                  </div>
-                </div>
-              ))}
-              {(data?.plans ?? []).length === 0 && <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>No plans found</div>}
-            </div>
-          )}
-        </Card>
-
+      {/* Top Gyms */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16 }}>
         <Card title="Top Gyms by Activity">
           {loading ? <Spinner /> : (
             <div>

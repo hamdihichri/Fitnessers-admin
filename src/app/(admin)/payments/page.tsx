@@ -20,6 +20,11 @@ export default function PaymentsPage() {
   const [warnings, setWarnings] = useState<Record<string, string>>({})
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
+  // Fee Settings State
+  const [feeBps, setFeeBps] = useState<number>(1000)
+  const [feeInput, setFeeInput] = useState<string>('10')
+  const [savingFee, setSavingFee] = useState(false)
+
   const toggleRow = (id: string) => {
     setExpandedRows(prev =>
       prev.includes(id) ? prev.filter(r => r !== id) : [...prev, id]
@@ -72,6 +77,16 @@ export default function PaymentsPage() {
   async function load() {
     setLoading(true)
     try {
+      // Load fee setting
+      fetch('/api/platform-settings?key=gym_withdraw_fee_bps')
+        .then(r => r.json())
+        .then(d => {
+          if (d?.value_int !== undefined) {
+            setFeeBps(d.value_int)
+            setFeeInput((d.value_int / 100).toFixed(1))
+          }
+        })
+
       if (tab === 'balances') {
         const data = await fetch('/api/tokens/gym-balances').then(r => r.json())
         setGyms(Array.isArray(data) ? data : [])
@@ -117,6 +132,34 @@ export default function PaymentsPage() {
     load()
   }
 
+  // Save handler
+  async function saveFee() {
+    setSavingFee(true)
+    const bps = Math.round(parseFloat(feeInput) * 100)
+    if (isNaN(bps) || bps < 0 || bps > 5000) {
+      setSavingFee(false)
+      toast.error('Invalid fee rate')
+      return
+    }
+    try {
+      const res = await fetch('/api/platform-settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'gym_withdraw_fee_bps', value_int: bps })
+      })
+      if (res.ok) {
+        setFeeBps(bps)
+        toast.success('Withdrawal fee rate updated')
+      } else {
+        toast.error('Failed to save fee rate')
+      }
+    } catch (err) {
+      toast.error('Error saving fee rate')
+    } finally {
+      setSavingFee(false)
+    }
+  }
+
 
   return (
     <div className="page-enter">
@@ -146,6 +189,36 @@ export default function PaymentsPage() {
           </div>
         }
       />
+
+      {/* Fee Settings Section */}
+      <div style={{ marginBottom: 20 }}>
+        <Card>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: 1 }}>
+                WITHDRAWAL FEE RATE
+              </div>
+              <div style={{ fontSize: 24, fontWeight: 700 }}>{(feeBps / 100).toFixed(1)}%</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                Applied to all new withdrawal requests
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input
+                type="number"
+                min="0" max="50" step="0.5"
+                value={feeInput}
+                onChange={e => setFeeInput(e.target.value)}
+                style={{ width: 70, padding: '6px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: 13 }}
+              />
+              <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>%</span>
+              <button className="btn btn-primary btn-sm" onClick={saveFee} disabled={savingFee}>
+                {savingFee ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </Card>
+      </div>
 
       {tab === 'pending' && pendingCount > 0 && (
         <div className="alert-banner alert-amber">
