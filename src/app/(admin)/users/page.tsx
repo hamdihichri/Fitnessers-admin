@@ -70,12 +70,23 @@ export default function UsersPage() {
 
   async function fetchSuspData(userId: string) {
     setLoadingSusp(true)
-    const [susp, rel] = await Promise.all([
-      supabase.from('superadmin_active_suspensions').select('*').eq('user_id', userId).order('suspended_at', { ascending: false }),
-      supabase.from('user_attendance_penalties').select('reliability_score, reliability_tier').eq('user_id', userId).single()
+    const [susp, penalties] = await Promise.all([
+      supabase
+        .from('superadmin_active_suspensions')
+        .select('*')
+        .eq('user_id', userId)
+        .order('suspended_at', { ascending: false }),
+      supabase
+        .from('user_attendance_penalties')
+        .select('reliability_score, reliability_tier')
+        .eq('user_id', userId)
+        .maybeSingle()
     ])
-    setSuspData(susp.data)
-    setRelData(rel.data)
+    setSuspData(susp.data ?? [])
+    setRelData({
+      reliability_score: penalties.data?.reliability_score ?? 100,
+      current_cap: susp.data?.[0]?.current_cap ?? 100,
+    })
     setLoadingSusp(false)
   }
 
@@ -288,17 +299,17 @@ export default function UsersPage() {
                     Score: {relData.reliability_score}
                   </div>
                 )}
-                {suspData !== null && (
+                {relData && (
                   <div style={{ 
                     padding: '6px 12px', 
                     borderRadius: 10, 
-                    background: suspData.some(s => s.is_cap_active) ? 'rgba(249, 115, 22, 0.1)' : 'rgba(100, 116, 139, 0.1)',
-                    color: suspData.some(s => s.is_cap_active) ? '#F97316' : '#64748B',
+                    background: relData.current_cap < 100 ? 'rgba(249, 115, 22, 0.1)' : 'rgba(100, 116, 139, 0.1)',
+                    color: relData.current_cap < 100 ? '#F97316' : '#64748B',
                     fontWeight: 700,
                     fontSize: 12,
                     border: '1px solid currentColor'
                   }}>
-                    Cap: {suspData.find(s => s.is_cap_active)?.current_cap ?? 100}
+                    Cap: {relData.current_cap}
                   </div>
                 )}
               </div>

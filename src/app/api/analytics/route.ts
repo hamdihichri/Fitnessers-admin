@@ -18,7 +18,13 @@ export async function GET() {
     days.push(d.toISOString().slice(0, 10))
   }
 
-  const [churnedUsers, users, subs, bookings, checkins, withdrawFees, withdrawFeesByMonth, checkinRows, feeSetting, planStats, planMonthlyRaw] =
+  const months7: string[] = []
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    months7.push(d.toISOString().slice(0, 7))
+  }
+
+  const [churnedUsers, users, subs, bookings, checkins, withdrawFees, withdrawFeesByMonth, checkinRows, feeSetting, planStats, planMonthlyRaw, signupRows, activeSubRows] =
     await Promise.all([
       sb.rpc('count_churned_users'),
       sb.from('profiles').select('user_id', { count: 'exact', head: true }),
@@ -56,8 +62,39 @@ export async function GET() {
       // Subscriptions per plan per month (last 6 months)
       sb.from('subscriptions')
         .select('plan_id, started_at, plans(name, billing_period)')
-        .gte('started_at', new Date(Date.now() - 6 * 30 * 24 * 60 * 60 * 1000).toISOString())
+        .gte('started_at', new Date(Date.now() - 6 * 30 * 24 * 60 * 60 * 1000).toISOString()),
+
+      sb.from('profiles')
+        .select('created_at')
+        .gte('created_at', months7[0] + '-01T00:00:00'),
+
+      sb.from('subscriptions')
+        .select('started_at')
+        .gte('started_at', months7[0] + '-01T00:00:00'),
     ])
+
+  const signupsByMonth7: Record<string, number> = {}
+  months7.forEach(m => (signupsByMonth7[m] = 0))
+  for (const p of signupRows.data ?? []) {
+    const m = p.created_at?.slice(0, 7)
+    if (m && signupsByMonth7[m] !== undefined) signupsByMonth7[m]++
+  }
+
+  const activeSubsByMonth7: Record<string, number> = {}
+  months7.forEach(m => (activeSubsByMonth7[m] = 0))
+  for (const s of activeSubRows.data ?? []) {
+    const m = s.started_at?.slice(0, 7)
+    if (m && activeSubsByMonth7[m] !== undefined) activeSubsByMonth7[m]++
+  }
+
+  // Growth % = (current - previous) / previous * 100
+  function growthPct(current: number, previous: number) {
+    if (previous === 0) return current > 0 ? 100 : 0
+    return Math.round(((current - previous) / previous) * 100)
+  }
+
+  const signupGrowth = growthPct(signupsByMonth7[months7[6]], signupsByMonth7[months7[5]])
+  const subsGrowth = growthPct(activeSubsByMonth7[months7[6]], activeSubsByMonth7[months7[5]])
 
   const planKpis = (planStats.data ?? []).map((p: any) => ({
     plan_id: p.plan_id,
@@ -137,6 +174,10 @@ export async function GET() {
     feeBps: feeSetting.data?.value_int ?? 1000,  // current withdrawal fee rate
     planKpis,
     planCharts,
+    signupGrowth,
+    subsGrowth,
+    signupsByMonth: months.map(m => ({ month: m, count: signupsByMonth7[m] })),
+    activeSubsByMonth: months.map(m => ({ month: m, count: activeSubsByMonth7[m] })),
     revenueByMonth: months.map(m => ({ month: m, cents: revenueByMonth[m] })),
     checkinsByDay: days.map(d => ({ day: d, count: checkinsByDay[d] })),
     topGyms,

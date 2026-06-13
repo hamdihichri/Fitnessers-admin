@@ -1,8 +1,9 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { KpiCard, Card, Spinner, Badge, UserCell, providerBadge, PageHeader } from '@/components/ui'
 import { fmtDate, fmtTND, timeAgo } from '@/lib/utils'
-import { RefreshCw, CheckCircle, XCircle, TrendingUp, Activity } from 'lucide-react'
+import { RefreshCw, TrendingUp, Activity, Users } from 'lucide-react'
 import { fetchJson } from '@/lib/fetchJson'
 
 function BarChart({ data, label }: { data: { label: string; value: number }[]; label: string }) {
@@ -32,6 +33,7 @@ function BarChart({ data, label }: { data: { label: string; value: number }[]; l
 }
 
 export default function DashboardPage() {
+  const router = useRouter()
   const [stats, setStats] = useState<any>(null)
   const [payments, setPayments] = useState<any[]>([])
   const [health, setHealth] = useState<any>(null)
@@ -52,24 +54,15 @@ export default function DashboardPage() {
 
   useEffect(() => { load() }, [])
 
-  async function confirm(id: number) {
-    await fetch('/api/payments', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ payment_id: id, status: 'confirmed' }) })
-    load()
-  }
-  async function reject(id: number) {
-    await fetch('/api/payments', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ payment_id: id, status: 'rejected' }) })
-    load()
-  }
-
   const jobErrors = health ? health.jobLogs.filter((j: any) => j.status === 'error').length : 0
   const cronFails = health ? health.cronAudit.filter((c: any) => !c.ok).length : 0
   const checkinRate = stats?.bookingsToday > 0 ? Math.round((stats.checkinsToday / stats.bookingsToday) * 100) : 0
 
-  const revenueChartData = (analytics?.revenueByMonth ?? []).map((r: any) => ({
-    label: r.month, value: r.cents / 100
+  const signupChartData = (analytics?.signupsByMonth ?? []).map((r: any) => ({
+    label: r.month, value: r.count
   }))
-  const checkinChartData = (analytics?.checkinsByDay ?? []).map((c: any) => ({
-    label: c.day, value: c.count
+  const activeSubsChartData = (analytics?.activeSubsByMonth ?? []).map((r: any) => ({
+    label: r.month, value: r.count
   }))
 
   return (
@@ -98,20 +91,42 @@ export default function DashboardPage() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
         <Card>
           <div style={{ padding: '20px 24px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-              <TrendingUp size={14} style={{ color: 'var(--accent-blue)' }} />
-              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)' }}>Revenue — Last 6 Months</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Users size={14} style={{ color: '#8B5CF6' }} />
+                <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)' }}>User Signups — Last 6 Months</span>
+              </div>
+              {analytics && (
+                <span style={{
+                  fontSize: 11, fontFamily: 'var(--font-mono)', fontWeight: 700, padding: '2px 8px', borderRadius: 4,
+                  background: analytics.signupGrowth >= 0 ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
+                  color: analytics.signupGrowth >= 0 ? '#10B981' : '#EF4444',
+                }}>
+                  {analytics.signupGrowth >= 0 ? '+' : ''}{analytics.signupGrowth}% vs last month
+                </span>
+              )}
             </div>
-            {analytics ? <BarChart data={revenueChartData} label="Monthly Revenue (TND)" /> : <Spinner />}
+            {analytics ? <BarChart data={signupChartData} label="New Users per Month" /> : <Spinner />}
           </div>
         </Card>
         <Card>
           <div style={{ padding: '20px 24px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-              <Activity size={14} style={{ color: '#10B981' }} />
-              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)' }}>Check-ins — Last 7 Days</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <TrendingUp size={14} style={{ color: '#10B981' }} />
+                <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)' }}>Active Subscriptions — Last 6 Months</span>
+              </div>
+              {analytics && (
+                <span style={{
+                  fontSize: 11, fontFamily: 'var(--font-mono)', fontWeight: 700, padding: '2px 8px', borderRadius: 4,
+                  background: analytics.subsGrowth >= 0 ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
+                  color: analytics.subsGrowth >= 0 ? '#10B981' : '#EF4444',
+                }}>
+                  {analytics.subsGrowth >= 0 ? '+' : ''}{analytics.subsGrowth}% vs last month
+                </span>
+              )}
             </div>
-            {analytics ? <BarChart data={checkinChartData} label="Daily Check-ins" /> : <Spinner />}
+            {analytics ? <BarChart data={activeSubsChartData} label="New Subs per Month" /> : <Spinner />}
           </div>
         </Card>
       </div>
@@ -125,7 +140,11 @@ export default function DashboardPage() {
           ) : (
             <div>
               {payments.map((p: any) => (
-                <div key={p.withdraw_id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+                <div 
+                  key={p.withdraw_id} 
+                  onClick={() => router.push('/payments')}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
+                >
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.gyms?.name ?? 'Unknown'}</div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.gyms?.city}, {p.gyms?.country}</div>
@@ -137,8 +156,6 @@ export default function DashboardPage() {
                   }}>
                     {new Date(p.request_month).toLocaleDateString('fr-TN', { month: 'short', year: 'numeric' })}
                   </span>
-                  <button className="btn btn-confirm btn-sm" onClick={() => confirm(p.withdraw_id)}><CheckCircle size={11} /></button>
-                  <button className="btn btn-reject btn-sm" onClick={() => reject(p.withdraw_id)}><XCircle size={11} /></button>
                 </div>
               ))}
             </div>
