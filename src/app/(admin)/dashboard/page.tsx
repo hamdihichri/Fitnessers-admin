@@ -78,7 +78,7 @@ export default function DashboardPage() {
       />
 
       {/* KPI Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 12, marginBottom: 20 }}>
+      <div className="kpi-grid">
         <KpiCard label="Total Gyms" value={stats?.totalGyms ?? '—'} sub={stats ? `${stats.pendingGyms} pending` : ''} subColor={stats?.pendingGyms > 0 ? '#F59E0B' : 'var(--text-muted)'} accent="blue" />
         <KpiCard label="Total Users" value={stats?.totalUsers ?? '—'} sub="registered" accent="green" />
         <KpiCard label="Active Subs" value={stats?.activeSubscriptions ?? '—'} sub="subscriptions" accent="purple" />
@@ -88,7 +88,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Charts row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+      <div className="grid-2-col">
         <Card>
           <div style={{ padding: '20px 24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -132,7 +132,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Two column */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+      <div className="grid-2-col">
         {/* Pending Payments */}
         <Card title="Pending Payments" action={<a href="/payments" style={{ fontSize: 11, color: 'var(--accent-blue)', textDecoration: 'none', fontFamily: 'var(--font-mono)' }}>View all →</a>}>
           {loading ? <Spinner /> : payments.length === 0 ? (

@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard, Building2, Users, CreditCard, Coins,
-  Building, BarChart3, Monitor, LogOut, Dumbbell, CalendarDays, Receipt, ShieldCheck, PlusCircle, LifeBuoy, Radio, Ticket
+  Building, BarChart3, Monitor, LogOut, Dumbbell, CalendarDays, Receipt, ShieldCheck, PlusCircle, LifeBuoy, Radio, Ticket, X
 } from 'lucide-react'
 import { createBrowserClient } from '@/lib/supabaseBrowser'
 
@@ -23,7 +23,7 @@ const NAV = [
   { href: '/monitoring', icon: Monitor, label: 'Monitoring' },
 ]
 
-export function Sidebar() {
+export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) {
   const path = usePathname()
   const router = useRouter()
 
@@ -39,14 +39,17 @@ export function Sidebar() {
   }
 
   return (
-    <aside style={{
-      width: 240, minWidth: 240,
-      background: 'var(--bg-topbar)',
-      borderRight: '1px solid var(--border)',
-      display: 'flex', flexDirection: 'column',
-      height: '100vh', overflow: 'hidden',
-      transition: 'all 0.25s',
-    }}>
+    <aside 
+      className={`sidebar-aside${isOpen ? ' open' : ''}`}
+      style={{
+        width: 240, minWidth: 240,
+        background: 'var(--bg-topbar)',
+        borderRight: '1px solid var(--border)',
+        display: 'flex', flexDirection: 'column',
+        height: '100vh', overflow: 'hidden',
+        transition: 'all 0.25s',
+      }}
+    >
       {/* Logo */}
       <div style={{
         padding: '20px 18px 16px',
@@ -58,7 +61,7 @@ export function Sidebar() {
           alt="Fitnessers Logo"
           style={{ height: 36, objectFit: 'contain' }}
         />
-        <div>
+        <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 800, fontSize: 13, letterSpacing: '-0.03em', color: 'var(--text-primary)', fontFamily: 'var(--font-heading)' }}>
             Fitnessers
           </div>
@@ -66,6 +69,24 @@ export function Sidebar() {
             Admin Panel
           </div>
         </div>
+        {onClose && (
+          <button 
+            onClick={onClose}
+            style={{ 
+              background: 'none', 
+              border: 'none', 
+              color: 'var(--text-muted)', 
+              cursor: 'pointer', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              padding: 4 
+            }}
+            className="md-close-btn"
+          >
+            <X size={18} />
+          </button>
+        )}
       </div>
 
       {/* Admin info */}
@@ -95,7 +116,7 @@ export function Sidebar() {
         {NAV.map(({ href, icon: Icon, label, badge }) => {
           const active = path === href || (href !== '/dashboard' && path.startsWith(href))
           return (
-            <Link key={href} href={href} style={{ textDecoration: 'none' }}>
+            <Link key={href} href={href} style={{ textDecoration: 'none' }} onClick={() => onClose?.()}>
               <div className={`nav-item${active ? ' active' : ''}`}>
                 <Icon size={15} style={{ flexShrink: 0, opacity: active ? 1 : 0.7 }} />
                 <span style={{ flex: 1, fontWeight: active ? 600 : 500, fontSize: 13 }}>{label}</span>

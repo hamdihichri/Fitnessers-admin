@@ -184,12 +184,12 @@ export function Card({ children, title, action, glass = false }: { children: Rea
 // ── Section Header ─────────────────────────────────────
 export function PageHeader({ title, crumb, actions }: { title: string; crumb?: string; actions?: React.ReactNode }) {
   return (
-    <div style={{ marginBottom: 24, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+    <div className="page-header-container" style={{ marginBottom: 24, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
       <div>
         {crumb && <div className="breadcrumb"><span>Home</span><span className="sep">/</span><span style={{ color: 'var(--text-primary)' }}>{crumb}</span></div>}
         <h1 style={{ fontWeight: 800, fontSize: 22, letterSpacing: '-0.5px', color: 'var(--text-primary)' }}>{title}</h1>
       </div>
-      {actions && <div style={{ display: 'flex', gap: 8 }}>{actions}</div>}
+      {actions && <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{actions}</div>}
     </div>
   )
 }

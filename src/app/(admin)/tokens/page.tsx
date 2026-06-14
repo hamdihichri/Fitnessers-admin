@@ -40,7 +40,7 @@ export default function TokensPage() {
         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
           <Wallet size={14} /> Token Economy Summary
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+        <div className="grid-4-col">
           <KpiCard 
             label="Inactive in Vouchers" 
             value={fmt(econ?.total_inactive_voucher_tokens?.total)} 
@@ -92,7 +92,7 @@ export default function TokensPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
+      <div className="grid-4-col">
         <KpiCard label="In Circulation" value={data?.stats?.circulation ?? '—'} sub="active tokens" accent="blue" />
         <KpiCard label="Credited Today" value={data?.stats?.todayCredit != null ? '+' + data.stats.todayCredit + 'T' : '—'} sub="tokens granted" subColor="#10B981" accent="green" />
         <KpiCard label="Debited Today" value={data?.stats?.todayDebit != null ? '-' + data.stats.todayDebit + 'T' : '—'} sub="tokens spent" subColor="#EF4444" accent="red" />

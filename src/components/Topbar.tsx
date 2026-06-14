@@ -1,7 +1,7 @@
 'use client'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { Search, Bell, Sun, Moon, Inbox } from 'lucide-react'
+import { Search, Bell, Sun, Moon, Inbox, Menu } from 'lucide-react'
 import { useTheme } from '@/lib/theme'
 import { Dropdown, DropdownItem } from './ui'
 import { useRouter } from 'next/navigation'
@@ -22,7 +22,7 @@ const TITLES: Record<string, { title: string; crumb: string }> = {
   '/women-only-requests': { title: 'Women-Only Requests', crumb: 'Women-Only Requests' },
 }
 
-export function Topbar() {
+export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const path = usePathname()
   const { theme, toggle } = useTheme()
   const router = useRouter()
@@ -61,6 +61,16 @@ export function Topbar() {
       padding: '0 24px', gap: 16, flexShrink: 0,
       transition: 'all 0.25s',
     }}>
+      {/* Hamburger menu for mobile */}
+      {onMenuClick && (
+        <button
+          className="hamburger-btn theme-toggle"
+          onClick={onMenuClick}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 8 }}
+        >
+          <Menu size={16} />
+        </button>
+      )}
       {/* Search */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 8,

@@ -66,7 +66,7 @@ export default function AnalyticsPage() {
       } />
 
       {/* Summary KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 20 }}>
+      <div className="grid-5-col">
         {[
           { label: 'Total Users', value: data?.totalUsers ?? '—', icon: Users, color: '#8B5CF6' },
           { label: 'Active Subs', value: data?.activeSubs ?? '—', icon: TrendingUp, color: '#10B981' },
@@ -87,7 +87,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Plan KPI cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
+      <div className="grid-3-col">
         {(data?.planKpis ?? []).map((plan: any) => (
           <div key={plan.plan_id} className="og-card" style={{ padding: 20 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
@@ -110,7 +110,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Plan 6-month charts */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
+      <div className="grid-3-col">
         {(data?.planCharts ?? []).map((plan: any) => (
           <Card key={plan.plan_id} title={`${plan.name} (${plan.billing_period}) — New Subs / Month`}>
             {loading ? <Spinner /> : (
@@ -122,7 +122,7 @@ export default function AnalyticsPage() {
 
 
       {/* Charts row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+      <div className="grid-2-col">
         <Card title="Revenue — Last 6 Months">
           {loading ? <Spinner /> : (
             <BarChart

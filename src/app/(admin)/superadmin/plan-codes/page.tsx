@@ -645,7 +645,7 @@ export default function PlanCodesPage() {
 
       {activeTab === 'manage' ? (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24 }}>
+          <div className="grid-2-col" style={{ gap: 24, marginBottom: 24 }}>
 
         {/* Section 1: Generate Codes */}
         <Card>
@@ -790,11 +790,11 @@ export default function PlanCodesPage() {
 
       {/* Section 3: Codes Table */}
       <Card>
-        <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
           <input 
             type="text" className="og-input" placeholder="Search code, seller..." 
             value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-            style={{ width: 250 }}
+            style={{ width: '100%', minWidth: 200, flex: 1 }}
           />
           <select className="og-input" value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ width: 140 }}>
             <option value="All">All Statuses</option>
@@ -813,7 +813,7 @@ export default function PlanCodesPage() {
               <option key={comp.company_id} value={comp.company_id}>{comp.name}</option>
             ))}
           </select>
-          <div style={{ marginLeft: 'auto', fontSize: 13, color: 'var(--text-secondary)' }}>
+          <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
             Showing page {Math.floor(offset / rowsPerPage) + 1} (Total DB count: {totalCount})
           </div>
         </div>
@@ -892,9 +892,9 @@ export default function PlanCodesPage() {
                           }}
                         />
                       </td>
-                      <td style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 13 }}>
+                      <td style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}>
                         <span 
-                          style={{ cursor: 'pointer', padding: '2px 6px', background: 'var(--bg-elevated)', borderRadius: 4 }}
+                          style={{ cursor: 'pointer', padding: '2px 6px', background: 'var(--bg-elevated)', borderRadius: 4, display: 'inline-block' }}
                           onClick={() => { navigator.clipboard.writeText(c.code); toast.success('Copied!') }}
                           title="Click to copy"
                         >
@@ -1056,7 +1056,7 @@ export default function PlanCodesPage() {
                   </button>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 20 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 20 }}>
                   {Object.entries(categorizedCodes).map(([category, periods]) => {
                     const totalInCategory = Object.values(periods).reduce((acc, codes) => acc + codes.length, 0)
                     if (totalInCategory === 0) return null

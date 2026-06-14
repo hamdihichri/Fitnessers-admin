@@ -2,7 +2,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { Card, Spinner, EmptyState, Badge, StatPill, FilterBar, Modal, FormGroup, InfoBox, ModalActions, PageHeader, CustomSelect, UserCell } from '@/components/ui'
 import { fmtDate } from '@/lib/utils'
-import { Search, Download, Tag } from 'lucide-react'
+import { Search, Download, Tag, ChevronDown, ChevronRight } from 'lucide-react'
 
 export default function SubscriptionsPage() {
     const [subs, setSubs] = useState<any[]>([])
@@ -16,6 +16,8 @@ export default function SubscriptionsPage() {
     const [saving, setSaving] = useState(false)
     const [editPlanModal, setEditPlanModal] = useState<any>(null)
     const [editPlanForm, setEditPlanForm] = useState({ priceCents: 0, tokens: 0 })
+
+    const [plansExpanded, setPlansExpanded] = useState(false)
 
     async function load() {
         setLoading(true)
@@ -95,6 +97,66 @@ export default function SubscriptionsPage() {
                 }
             />
 
+            {/* ── Plans Management (Expandable/Collapsible) ─────────── */}
+            <div style={{ marginBottom: 20 }}>
+                <Card>
+                    <div 
+                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}
+                        onClick={() => setPlansExpanded(!plansExpanded)}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ display: 'flex', alignItems: 'center', color: 'var(--text-muted)' }}>
+                                {plansExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                            </span>
+                            <span style={{ fontWeight: 700, fontSize: 15 }}>Monthly Plans Management</span>
+                        </div>
+                        <Badge label={`${plans.length} plans`} variant="blue" />
+                    </div>
+
+                    {plansExpanded && (
+                        <div style={{ marginTop: 16, borderTop: '1px solid var(--border-subtle)', paddingTop: 16 }}>
+                            {plansLoading ? <Spinner /> : plans.length === 0 ? (
+                                <EmptyState message="No plans found" />
+                            ) : (
+                                <div style={{ overflowX: 'auto' }}>
+                                    <table className="og-table">
+                                        <thead><tr>
+                                            <th>Plan Name</th>
+                                            <th><span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Tag size={11} /> Price (DT)</span></th>
+                                            <th>Tokens / Period</th>
+                                            <th>Billing</th>
+                                            <th>Actions</th>
+                                        </tr></thead>
+                                        <tbody>
+                                            {plans.map((p: any) => (
+                                                <tr key={p.plan_id}>
+                                                    <td style={{ fontWeight: 600, fontSize: 13 }}>{p.name}</td>
+                                                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}>
+                                                        {(p.price_cents / 100).toLocaleString('fr-DZ', { minimumFractionDigits: 0 })} DT
+                                                    </td>
+                                                    <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-blue)', fontWeight: 700 }}>{p.tokens_per_period}T</td>
+                                                    <td><Badge label={p.billing_period ?? 'month'} variant="blue" /></td>
+                                                    <td>
+                                                        <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--border-subtle)' }}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                setEditPlanModal(p)
+                                                                setEditPlanForm({ priceCents: p.price_cents || 0, tokens: p.tokens_per_period || 0 })
+                                                            }}>
+                                                            Edit Plan
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </Card>
+            </div>
+
             <FilterBar>
                 <div style={{ position: 'relative', flex: 1, maxWidth: 280 }}>
                     <Search size={12} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
@@ -107,46 +169,6 @@ export default function SubscriptionsPage() {
                     { value: 'all', label: 'All' },
                 ]} />
             </FilterBar>
-
-            {/* ── Plans Management ───────────────────────────────── */}
-            <Card title="Monthly Plans">
-                {plansLoading ? <Spinner /> : plans.length === 0 ? (
-                    <EmptyState message="No plans found" />
-                ) : (
-                    <div style={{ overflowX: 'auto' }}>
-                        <table className="og-table">
-                            <thead><tr>
-                                <th>Plan Name</th>
-                                <th><span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Tag size={11} /> Price (DT)</span></th>
-                                <th>Tokens / Period</th>
-                                <th>Billing</th>
-                                <th>Actions</th>
-                            </tr></thead>
-                            <tbody>
-                                {plans.map((p: any) => (
-                                    <tr key={p.plan_id}>
-                                        <td style={{ fontWeight: 600, fontSize: 13 }}>{p.name}</td>
-                                        <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}>
-                                            {(p.price_cents / 100).toLocaleString('fr-DZ', { minimumFractionDigits: 0 })} DT
-                                        </td>
-                                        <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-blue)', fontWeight: 700 }}>{p.tokens_per_period}T</td>
-                                        <td><Badge label={p.billing_period ?? 'month'} variant="blue" /></td>
-                                        <td>
-                                            <button className="btn btn-ghost btn-sm" style={{ border: '1px solid var(--border-subtle)' }}
-                                                onClick={() => {
-                                                    setEditPlanModal(p)
-                                                    setEditPlanForm({ priceCents: p.price_cents || 0, tokens: p.tokens_per_period || 0 })
-                                                }}>
-                                                Edit Plan
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </Card>
 
             <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
                 <StatPill label="Active" value={active} />

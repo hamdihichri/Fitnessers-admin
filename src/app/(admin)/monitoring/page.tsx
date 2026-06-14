@@ -121,7 +121,7 @@ export default function MonitoringPage() {
       )}
 
       {/* Health summary row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+      <div className="grid-4-col">
         {[
           { label: 'Cron Health', value: cronFailing.length === 0 ? 'All OK' : `${cronFailing.length} failing`, dot: cronFailing.length === 0 ? 'green' : 'red' },
           { label: 'Failed Runs', value: recentCronFails.length.toString(), sub: 'last 300 runs', dot: recentCronFails.length === 0 ? 'green' : 'amber' },
