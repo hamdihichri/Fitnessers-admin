@@ -676,7 +676,19 @@ export default function PlanCodesPage() {
             </FormGroup>
 
             <FormGroup label="Assign to Company (optional)">
-              <select className="og-input" value={generateCompanyId || ''} onChange={e => setGenerateCompanyId(e.target.value ? Number(e.target.value) : null)}>
+              <select 
+                className="og-input" 
+                value={generateCompanyId || ''} 
+                onChange={e => {
+                  const val = e.target.value ? Number(e.target.value) : null
+                  setGenerateCompanyId(val)
+                  if (val) {
+                    setShowSellerConfig(false)
+                    setSellerName('')
+                    setSellerPhone('')
+                  }
+                }}
+              >
                 <option value="">No company — individual sale</option>
                 {companies.map(comp => (
                   <option key={comp.company_id} value={comp.company_id}>{comp.name}</option>
@@ -684,28 +696,30 @@ export default function PlanCodesPage() {
               </select>
             </FormGroup>
 
-            <div style={{ border: '1px solid var(--border-color)', borderRadius: 8, padding: 12 }}>
-              <div 
-                style={{ display: 'flex', justifyContent: 'space-between', cursor: 'pointer', fontWeight: 500, fontSize: 13 }}
-                onClick={() => setShowSellerConfig(!showSellerConfig)}
-              >
-                <span>Assign to Seller (Optional)</span>
-                <span>{showSellerConfig ? '▲' : '▼'}</span>
-              </div>
-              {showSellerConfig && (
-                <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <FormGroup label="Seller Name">
-                    <input type="text" className="og-input" value={sellerName} onChange={e => setSellerName(e.target.value)} />
-                  </FormGroup>
-                  <FormGroup label="Seller Phone">
-                    <input type="text" className="og-input" placeholder="+21650000000" value={sellerPhone} onChange={e => setSellerPhone(e.target.value)} />
-                  </FormGroup>
-                  <FormGroup label="Notes (Optional)">
-                    <textarea className="og-input" rows={2} value={generateNotes} onChange={e => setGenerateNotes(e.target.value)} />
-                  </FormGroup>
+            {!generateCompanyId && (
+              <div style={{ border: '1px solid var(--border-color)', borderRadius: 8, padding: 12 }}>
+                <div 
+                  style={{ display: 'flex', justifyContent: 'space-between', cursor: 'pointer', fontWeight: 500, fontSize: 13 }}
+                  onClick={() => setShowSellerConfig(!showSellerConfig)}
+                >
+                  <span>Assign to Seller (Optional)</span>
+                  <span>{showSellerConfig ? '▲' : '▼'}</span>
                 </div>
-              )}
-            </div>
+                {showSellerConfig && (
+                  <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <FormGroup label="Seller Name">
+                      <input type="text" className="og-input" value={sellerName} onChange={e => setSellerName(e.target.value)} />
+                    </FormGroup>
+                    <FormGroup label="Seller Phone">
+                      <input type="text" className="og-input" placeholder="+21650000000" value={sellerPhone} onChange={e => setSellerPhone(e.target.value)} />
+                    </FormGroup>
+                    <FormGroup label="Notes (Optional)">
+                      <textarea className="og-input" rows={2} value={generateNotes} onChange={e => setGenerateNotes(e.target.value)} />
+                    </FormGroup>
+                  </div>
+                )}
+              </div>
+            )}
 
             <FormGroup label="Expiry Date (Optional)">
               <input type="date" className="og-input" value={expiryDate} onChange={e => setExpiryDate(e.target.value)} />

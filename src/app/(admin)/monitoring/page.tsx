@@ -63,14 +63,14 @@ export default function MonitoringPage() {
   useEffect(() => { load() }, [])
 
   const cronFailing = useMemo(() => data?.cronAudit?.filter(a => !a.ok) || [], [data])
-  const highFailureJobs = useMemo(() => data?.cronAudit?.filter(a => a.failure_rate_pct > 20) || [], [data])
+  const highFailureJobs = useMemo(() => data?.cronAudit?.filter(a => (a.failure_rate_pct ?? 0) > 20) || [], [data])
   const recentCronFails = useMemo(() => data?.cronRuns?.filter(r => r.status === 'failed') || [], [data])
   const jobErrors = useMemo(() => data?.jobLogs?.filter(j => j.status === 'error') || [], [data])
 
   const sortedCronAudit = useMemo(() => {
     if (!data?.cronAudit) return []
     return [...data.cronAudit].sort((a, b) => {
-      if (a.ok === b.ok) return b.failure_rate_pct - a.failure_rate_pct
+      if (a.ok === b.ok) return (b.failure_rate_pct ?? 0) - (a.failure_rate_pct ?? 0)
       return a.ok ? 1 : -1
     })
   }, [data])
