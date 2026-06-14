@@ -26,12 +26,71 @@ export default function TokensPage() {
     adjustment: 'blue', refund: 'green', gym_earn: 'green',
   }
 
+  const fmt = (val: number | undefined) => val?.toLocaleString() ?? '—'
+  const econ = data?.economySummary
+
   return (
     <div className="page-enter">
       <PageHeader
         title="Token Economy"
         crumb="Tokens"
       />
+
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Wallet size={14} /> Token Economy Summary
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+          <KpiCard 
+            label="Inactive in Vouchers" 
+            value={fmt(econ?.total_inactive_voucher_tokens?.total)} 
+            sub={econ ? `${econ.total_inactive_voucher_tokens.inactive_voucher_count} codes / ${econ.total_inactive_voucher_tokens.inactive_voucher_expired_count} exp.` : 'unredeemed / expired'} 
+            accent="amber" 
+          />
+          <KpiCard 
+            label="Total Activated" 
+            value={fmt(econ?.total_activated_tokens)} 
+            sub="lifetime tokens issued" 
+            accent="purple" 
+          />
+          <KpiCard 
+            label="Active Tokens" 
+            value={fmt(econ?.total_active_tokens)} 
+            sub="from active plans" 
+            accent="blue" 
+          />
+          <KpiCard 
+            label="Spent Tokens" 
+            value={fmt(econ?.total_spent_tokens)} 
+            sub="checkin charges" 
+            accent="green" 
+          />
+          <KpiCard 
+            label="Not Yet Spent" 
+            value={fmt(econ?.total_not_spent_tokens)} 
+            sub="issued but unused" 
+            accent="blue" 
+          />
+          <KpiCard 
+            label="Burned Tokens" 
+            value={fmt(econ?.total_burned_tokens?.total)} 
+            sub={econ ? `${fmt(econ.total_burned_tokens.burned_by_payout)} p. / ${fmt(econ.total_burned_tokens.burned_by_expiry)} e. / ${fmt(econ.total_burned_tokens.burned_by_cancellation)} c. / ${fmt(econ.total_burned_tokens.burned_other)} o.` : 'payouts / expired / canceled / other'} 
+            accent="red" 
+          />
+          <KpiCard 
+            label="Admin Granted" 
+            value={fmt(econ?.total_admin_granted_tokens?.total)} 
+            sub={econ ? `${fmt(econ.total_admin_granted_tokens.topup)} topup / ${fmt(econ.total_admin_granted_tokens.adjustment)} adj. / ${fmt(econ.total_admin_granted_tokens.expiry_correction)} corr.` : 'topup / adjustment / correction'} 
+            accent="purple" 
+          />
+          <KpiCard 
+            label="Free Trial Issued" 
+            value={fmt(econ?.total_trial_tokens_issued?.total)} 
+            sub={econ ? `${econ.total_trial_tokens_issued.grant_count} new-user grants` : 'new-user grants'} 
+            accent="amber" 
+          />
+        </div>
+      </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
         <KpiCard label="In Circulation" value={data?.stats?.circulation ?? '—'} sub="active tokens" accent="blue" />

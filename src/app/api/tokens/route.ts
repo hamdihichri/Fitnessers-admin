@@ -14,14 +14,15 @@ export async function GET(req: NextRequest) {
   if (direction) query = query.eq('direction', direction)
   if (reason) query = query.eq('reason', reason)
 
-  const [ledger, todayC, todayD, expiring] = await Promise.all([
+  const [ledger, todayC, todayD, expiring, economy] = await Promise.all([
     query,
     sb.from('token_ledger').select('amount').eq('direction','credit').gte('created_at', today+'T00:00:00'),
     sb.from('token_ledger').select('amount').eq('direction','debit').gte('created_at', today+'T00:00:00'),
     sb.from('token_ledger').select('amount').eq('direction','credit').lte('expires_at', in7).gt('expires_at', new Date().toISOString()),
+    sb.rpc('get_admin_token_overview')
   ])
 
-  if (!ledger.data?.length) return NextResponse.json({ rows:[], stats:{} })
+  if (!ledger.data?.length) return NextResponse.json({ rows:[], stats:{}, economySummary: economy.data ?? null })
 
   const userIds = [...new Set(ledger.data.map(l => l.user_id))]
   const { data: profiles } = await sb.from('profiles').select('user_id,full_name').in('user_id', userIds)
@@ -38,7 +39,8 @@ export async function GET(req: NextRequest) {
       todayCredit: (todayC.data??[]).reduce((s,l)=>s+l.amount,0),
       todayDebit:  (todayD.data??[]).reduce((s,l)=>s+l.amount,0),
       expiringSoon:(expiring.data??[]).reduce((s,l)=>s+l.amount,0),
-    }
+    },
+    economySummary: economy.data ?? null
   })
 }
 
