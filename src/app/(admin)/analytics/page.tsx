@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react'
 import { Card, Spinner, PageHeader, StatPill, Badge } from '@/components/ui'
 import { fmtTND } from '@/lib/utils'
 import { TrendingUp, Activity, Users } from 'lucide-react'
+import { swrFetch } from '@/lib/cache'
+import { RefreshCw } from 'lucide-react'
 import { fetchJson } from '@/lib/fetchJson'
 
 function BarChart({ data, formatter = (v: number) => String(v), color = 'var(--accent-blue)' }: {
@@ -40,12 +42,20 @@ function BarChart({ data, formatter = (v: number) => String(v), color = 'var(--a
 export default function AnalyticsPage() {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
 
-  async function load() {
-    setLoading(true)
-    const d = await fetchJson('/api/analytics')
-    setData(d)
-    setLoading(false)
+  async function load(force = false) {
+    if (!data) setLoading(true)
+    else setRefreshing(true)
+    
+    try {
+      await swrFetch('analytics-data', () => fetchJson('/api/analytics'), setData, force ? 0 : 30000)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
   }
 
   useEffect(() => { load() }, [])
@@ -62,17 +72,25 @@ export default function AnalyticsPage() {
   return (
     <div className="page-enter">
       <PageHeader title="Analytics" crumb="Analytics" actions={
-        <button className="btn btn-ghost btn-sm" onClick={load}>Refresh</button>
+        <button 
+          className="btn btn-ghost btn-sm" 
+          onClick={() => load(true)}
+          disabled={loading || refreshing}
+          style={{ gap: 6 }}
+        >
+          <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
+          {refreshing ? 'Refreshing…' : 'Refresh'}
+        </button>
       } />
 
       {/* Summary KPIs */}
       <div className="grid-5-col">
         {[
-          { label: 'Total Users', value: data?.totalUsers ?? '—', icon: Users, color: '#8B5CF6' },
-          { label: 'Active Subs', value: data?.activeSubs ?? '—', icon: TrendingUp, color: '#10B981' },
-          { label: 'Churned Users', value: data?.churnedUsers ?? '—', icon: Users, color: '#EF4444' },
-          { label: 'Total Check-ins', value: data?.totalCheckins ?? '—', icon: Activity, color: '#F59E0B' },
-          { label: 'Total Revenue', value: loading ? '—' : fmtTND(totalRevenue), icon: TrendingUp, color: '#10B981' },
+          { label: 'Total Users', value: data ? data.totalUsers : '—', icon: Users, color: '#8B5CF6' },
+          { label: 'Active Subs', value: data ? data.activeSubs : '—', icon: TrendingUp, color: '#10B981' },
+          { label: 'Churned Users', value: data ? data.churnedUsers : '—', icon: Users, color: '#EF4444' },
+          { label: 'Total Check-ins', value: data ? data.totalCheckins : '—', icon: Activity, color: '#F59E0B' },
+          { label: 'Total Revenue', value: data ? fmtTND(totalRevenue) : '—', icon: TrendingUp, color: '#10B981' },
         ].map(kpi => (
           <div key={kpi.label} className="og-card" style={{ padding: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
@@ -80,7 +98,7 @@ export default function AnalyticsPage() {
               <kpi.icon size={14} style={{ color: kpi.color, opacity: 0.7 }} />
             </div>
             <div style={{ fontFamily: 'var(--font-heading)', fontSize: 26, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.03em' }}>
-              {loading ? '…' : kpi.value}
+              {kpi.value}
             </div>
           </div>
         ))}

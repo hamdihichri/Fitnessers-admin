@@ -2,7 +2,8 @@
 import { useEffect, useState, useMemo } from 'react'
 import { Card, Spinner, EmptyState, Badge, StatPill, FilterBar, Modal, FormGroup, InfoBox, ModalActions, PageHeader, CustomSelect, UserCell } from '@/components/ui'
 import { fmtDate } from '@/lib/utils'
-import { Search, Download, Tag, ChevronDown, ChevronRight } from 'lucide-react'
+import { Search, Download, Tag, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react'
+import { swrFetch } from '@/lib/cache'
 
 export default function SubscriptionsPage() {
     const [subs, setSubs] = useState<any[]>([])
@@ -18,21 +19,39 @@ export default function SubscriptionsPage() {
     const [editPlanForm, setEditPlanForm] = useState({ priceCents: 0, tokens: 0 })
 
     const [plansExpanded, setPlansExpanded] = useState(false)
+    const [refreshing, setRefreshing] = useState(false)
 
-    async function load() {
-        setLoading(true)
-        const params = new URLSearchParams()
-        if (statusFilter !== 'all') params.set('status', statusFilter)
-        params.set('t', Date.now().toString()) // cache buster
-        const data = await fetch('/api/subscriptions?' + params, { cache: 'no-store' }).then(r => r.json())
-        setSubs(Array.isArray(data) ? data : [])
-        setLoading(false)
+    async function load(force = false) {
+        if (subs.length === 0) setLoading(true)
+        else setRefreshing(true)
+        
+        try {
+            const params = new URLSearchParams()
+            if (statusFilter !== 'all') params.set('status', statusFilter)
+            
+            await swrFetch(`subs-list-${statusFilter}`, async () => {
+                const res = await fetch('/api/subscriptions?' + params, { cache: 'no-store' })
+                return res.json()
+            }, (data) => setSubs(Array.isArray(data) ? data : []), force ? 0 : 30000)
+        } catch (err) {
+            console.error(err)
+        } finally {
+            setLoading(false)
+            setRefreshing(false)
+        }
     }
-    async function loadPlans() {
+    async function loadPlans(force = false) {
         setPlansLoading(true)
-        const data = await fetch('/api/plans?t=' + Date.now(), { cache: 'no-store' }).then(r => r.json())
-        setPlans(Array.isArray(data) ? data : [])
-        setPlansLoading(false)
+        try {
+            await swrFetch('subs-plans', async () => {
+                const res = await fetch('/api/plans', { cache: 'no-store' })
+                return res.json()
+            }, (data) => setPlans(Array.isArray(data) ? data : []), force ? 0 : 60000)
+        } catch (err) {
+            console.error(err)
+        } finally {
+            setPlansLoading(false)
+        }
     }
     useEffect(() => { load() }, [statusFilter])
     useEffect(() => { loadPlans() }, [])
@@ -91,9 +110,20 @@ export default function SubscriptionsPage() {
                 title="Subscriptions"
                 crumb="Subscriptions"
                 actions={
-                    <button className="btn btn-secondary btn-sm" onClick={() => { const csv = subs.map(s => `${s.profiles?.full_name},${s.profiles?.email},${s.status},${s.plans?.name},${s.current_period_end}`).join('\n'); const b = new Blob([csv], { type: 'text/csv' }); const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href = u; a.download = 'subscriptions.csv'; a.click() }}>
-                        <Download size={14} /> Export CSV
-                    </button>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                        <button 
+                            className="btn btn-ghost btn-sm" 
+                            onClick={() => { load(true); loadPlans(true); }}
+                            disabled={loading || refreshing}
+                            style={{ gap: 6 }}
+                        >
+                            <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
+                            {refreshing ? 'Refreshing…' : 'Refresh'}
+                        </button>
+                        <button className="btn btn-secondary btn-sm" onClick={() => { const csv = subs.map(s => `${s.profiles?.full_name},${s.profiles?.email},${s.status},${s.plans?.name},${s.current_period_end}`).join('\n'); const b = new Blob([csv], { type: 'text/csv' }); const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href = u; a.download = 'subscriptions.csv'; a.click() }}>
+                            <Download size={14} /> Export CSV
+                        </button>
+                    </div>
                 }
             />
 

@@ -3,7 +3,8 @@ import { useEffect, useState, useMemo, Fragment } from 'react'
 import { Card, Spinner, EmptyState, Badge, FilterBar, UserCell, Tabs, Modal, InfoBox, ModalActions, providerBadge, PageHeader, CustomSelect, toast } from '@/components/ui'
 import { fmtDate, fmtTND, fmtDateTime, exportToCSV } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
-import { Download, FileText, ChevronDown, ChevronRight, Copy, Check } from 'lucide-react'
+import { Download, FileText, ChevronDown, ChevronRight, Copy, Check, RefreshCw } from 'lucide-react'
+import { swrFetch } from '@/lib/cache'
 
 
 export default function PaymentsPage() {
@@ -24,6 +25,7 @@ export default function PaymentsPage() {
   const [feeBps, setFeeBps] = useState<number>(1000)
   const [feeInput, setFeeInput] = useState<string>('10')
   const [savingFee, setSavingFee] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
 
   const toggleRow = (id: string) => {
     setExpandedRows(prev =>
@@ -74,33 +76,41 @@ export default function PaymentsPage() {
   }
 
 
-  async function load() {
-    setLoading(true)
+  async function load(force = false) {
+    if (payments.length === 0 && gyms.length === 0) setLoading(true)
+    else setRefreshing(true)
+    
     try {
       // Load fee setting
-      fetch('/api/platform-settings?key=gym_withdraw_fee_bps')
-        .then(r => r.json())
-        .then(d => {
-          if (d?.value_int !== undefined) {
-            setFeeBps(d.value_int)
-            setFeeInput((d.value_int / 100).toFixed(1))
-          }
-        })
+      await swrFetch('platform-withdraw-fee-bps', async () => {
+        const r = await fetch('/api/platform-settings?key=gym_withdraw_fee_bps')
+        return r.json()
+      }, (d) => {
+        if (d?.value_int !== undefined) {
+          setFeeBps(d.value_int)
+          setFeeInput((d.value_int / 100).toFixed(1))
+        }
+      }, force ? 0 : 60000)
 
       if (tab === 'balances') {
-        const data = await fetch('/api/tokens/gym-balances').then(r => r.json())
-        setGyms(Array.isArray(data) ? data : [])
+        await swrFetch('gym-balances', async () => {
+          const r = await fetch('/api/tokens/gym-balances')
+          return r.json()
+        }, (data) => setGyms(Array.isArray(data) ? data : []), force ? 0 : 30000)
       } else {
         const params = new URLSearchParams()
         if (tab !== 'all') params.set('status', tab)
         if (provider) params.set('provider', provider)
-        const data = await fetch('/api/payments?' + params).then(r => r.json())
-        setPayments(data)
+        await swrFetch(`payments-list-${tab}-${provider}`, async () => {
+          const r = await fetch('/api/payments?' + params)
+          return r.json()
+        }, setPayments, force ? 0 : 30000)
       }
     } catch (err) {
       console.error(err)
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
   }
   useEffect(() => { load() }, [tab, provider])
@@ -168,6 +178,15 @@ export default function PaymentsPage() {
         crumb="Payments"
         actions={
           <div style={{ display: 'flex', gap: 8 }}>
+            <button 
+              className="btn btn-ghost btn-sm" 
+              onClick={() => load(true)} 
+              disabled={loading || refreshing} 
+              style={{ gap: 6 }}
+            >
+              <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
+              {refreshing ? 'Refreshing…' : 'Refresh'}
+            </button>
             <button className="btn btn-ghost btn-sm print-visible" onClick={() => window.print()}>
               <FileText size={14} style={{ marginRight: 6 }} /> Export Report
             </button>

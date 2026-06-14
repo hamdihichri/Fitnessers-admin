@@ -5,6 +5,7 @@ import { KpiCard, Card, Spinner, Badge, UserCell, providerBadge, PageHeader } fr
 import { fmtDate, fmtTND, timeAgo } from '@/lib/utils'
 import { RefreshCw, TrendingUp, Activity, Users } from 'lucide-react'
 import { fetchJson } from '@/lib/fetchJson'
+import { swrFetch } from '@/lib/cache'
 
 function BarChart({ data, label }: { data: { label: string; value: number }[]; label: string }) {
   const max = Math.max(...data.map(d => d.value), 1)
@@ -39,17 +40,28 @@ export default function DashboardPage() {
   const [health, setHealth] = useState<any>(null)
   const [analytics, setAnalytics] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
 
-  async function load() {
-    setLoading(true)
-    const [s, p, m, a] = await Promise.all([
-      fetchJson('/api/dashboard'),
-      fetchJson('/api/payments?status=pending'),
-      fetchJson('/api/monitoring'),
-      fetchJson('/api/analytics'),
-    ])
-    setStats(s); setPayments(Array.isArray(p) ? p.slice(0, 6) : []); setHealth(m); setAnalytics(a)
-    setLoading(false)
+  async function load(force = false) {
+    if (!stats) setLoading(true)
+    else setRefreshing(true)
+    
+    try {
+      await Promise.all([
+        swrFetch('dashboard-stats', () => fetchJson('/api/dashboard'), setStats, force ? 0 : 30000),
+        swrFetch('dashboard-payments', async () => {
+          const p = await fetchJson('/api/payments?status=pending')
+          return Array.isArray(p) ? p.slice(0, 6) : []
+        }, setPayments, force ? 0 : 30000),
+        swrFetch('dashboard-health', () => fetchJson('/api/monitoring'), setHealth, force ? 0 : 30000),
+        swrFetch('dashboard-analytics', () => fetchJson('/api/analytics'), setAnalytics, force ? 0 : 30000)
+      ])
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
   }
 
   useEffect(() => { load() }, [])
@@ -71,8 +83,14 @@ export default function DashboardPage() {
         title="Overview"
         crumb="Dashboard"
         actions={
-          <button className="btn btn-ghost btn-sm" onClick={load} style={{ gap: 6 }}>
-            <RefreshCw size={13} /> Refresh
+          <button 
+            className="btn btn-ghost btn-sm" 
+            onClick={() => load(true)} 
+            disabled={loading || refreshing} 
+            style={{ gap: 6 }}
+          >
+            <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
+            {refreshing ? 'Refreshing…' : 'Refresh'}
           </button>
         }
       />

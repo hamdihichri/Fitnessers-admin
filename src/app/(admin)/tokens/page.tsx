@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { KpiCard, Card, Spinner, EmptyState, Badge, FilterBar, PageHeader, CustomSelect } from '@/components/ui'
 import { fmtDateTime, fmtDate } from '@/lib/utils'
-import { Wallet } from 'lucide-react'
+import { Wallet, RefreshCw } from 'lucide-react'
+import { swrFetch } from '@/lib/cache'
 
 export default function TokensPage() {
   const [data, setData] = useState<any>(null)
@@ -11,13 +12,26 @@ export default function TokensPage() {
   const [direction, setDirection] = useState('')
   const [reason, setReason] = useState('')
 
-  async function load() {
-    setLoading(true)
-    const params = new URLSearchParams()
-    if (direction) params.set('direction', direction)
-    if (reason) params.set('reason', reason)
-    const res = await fetch('/api/tokens?' + params).then(r => r.json())
-    setData(res); setLoading(false)
+  const [refreshing, setRefreshing] = useState(false)
+
+  async function load(force = false) {
+    if (!data) setLoading(true)
+    else setRefreshing(true)
+    
+    try {
+      const params = new URLSearchParams()
+      if (direction) params.set('direction', direction)
+      if (reason) params.set('reason', reason)
+      await swrFetch(`tokens-economy-${direction}-${reason}`, async () => {
+        const res = await fetch('/api/tokens?' + params)
+        return res.json()
+      }, setData, force ? 0 : 30000)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
   }
   useEffect(() => { load() }, [direction, reason])
 
@@ -34,6 +48,17 @@ export default function TokensPage() {
       <PageHeader
         title="Token Economy"
         crumb="Tokens"
+        actions={
+          <button 
+            className="btn btn-ghost btn-sm" 
+            onClick={() => load(true)} 
+            disabled={loading || refreshing} 
+            style={{ gap: 6 }}
+          >
+            <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
+            {refreshing ? 'Refreshing…' : 'Refresh'}
+          </button>
+        }
       />
 
       <div style={{ marginBottom: 24 }}>

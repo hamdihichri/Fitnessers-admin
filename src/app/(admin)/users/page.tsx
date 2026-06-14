@@ -2,8 +2,9 @@
 import { useEffect, useState, useMemo } from 'react'
 import { Card, Spinner, EmptyState, Badge, StatPill, FilterBar, UserCell, Modal, FormGroup, InfoBox, ModalActions, PageHeader, CustomSelect, Dropdown, DropdownItem, ConfirmModal, toast, Avatar } from '@/components/ui'
 import { fmtDate, exportToCSV } from '@/lib/utils'
-import { Search, Download, FileText, MoreVertical, Star, ShieldAlert, CheckCircle2, History, XCircle } from 'lucide-react'
+import { Search, Download, FileText, MoreVertical, Star, ShieldAlert, CheckCircle2, History, XCircle, RefreshCw } from 'lucide-react'
 import { fetchJson } from '@/lib/fetchJson'
+import { swrFetch } from '@/lib/cache'
 import { banUser, unbanUser, grantTokens, pardonCap, liftSuspension, supabase } from '@/lib/supabase'
 
 export default function UsersPage() {
@@ -27,10 +28,20 @@ export default function UsersPage() {
   const [actionReason, setActionReason] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
 
-  async function load() {
-    setLoading(true)
-    const data = await fetchJson('/api/users')
-    setUsers(data); setLoading(false)
+  const [refreshing, setRefreshing] = useState(false)
+ 
+  async function load(force = false) {
+    if (users.length === 0) setLoading(true)
+    else setRefreshing(true)
+    
+    try {
+      await swrFetch('users-list', () => fetchJson('/api/users'), setUsers, force ? 0 : 30000)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
   }
   useEffect(() => { load() }, [])
 
@@ -126,6 +137,15 @@ export default function UsersPage() {
         crumb="Users"
         actions={
           <div style={{ display: 'flex', gap: 8 }}>
+            <button 
+              className="btn btn-ghost btn-sm" 
+              onClick={() => load(true)} 
+              disabled={loading || refreshing} 
+              style={{ gap: 6 }}
+            >
+              <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
+              {refreshing ? 'Refreshing…' : 'Refresh'}
+            </button>
             <button className="btn btn-ghost btn-sm print-visible" onClick={() => window.print()}>
               <FileText size={14} style={{ marginRight: 6 }} /> Export Report
             </button>
