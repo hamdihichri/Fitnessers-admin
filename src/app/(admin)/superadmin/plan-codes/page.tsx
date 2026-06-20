@@ -568,8 +568,11 @@ export default function PlanCodesPage() {
     if (logoImg.complete) logoImg.onload(new Event('load'))
   }
 
-  async function generateVoucherPDF() {
-    const selected = codes.filter(c => selectedCodeIds.has(c.code_id))
+  async function generateVoucherPDF(codesToExport?: { code: string; code_id: number }[] | any) {
+    const selected = Array.isArray(codesToExport)
+      ? codesToExport
+      : codes.filter(c => selectedCodeIds.has(c.code_id))
+
     if (selected.length === 0) {
       toast.error("Select at least one code first")
       return
@@ -815,6 +818,9 @@ export default function PlanCodesPage() {
                 </button>
                 <button className="btn btn-outline btn-sm" style={{ flex: 1, gap: 6 }} onClick={downloadGeneratedCSV}>
                   <Download size={14} /> Download CSV
+                </button>
+                <button className="btn btn-primary btn-sm" style={{ flex: 1, gap: 6 }} onClick={() => generateVoucherPDF(generatedResults || [])}>
+                  <Ticket size={14} /> Generate Vouchers
                 </button>
               </div>
             </div>
