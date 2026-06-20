@@ -8,7 +8,7 @@ import {
   Tabs, FilterBar, Modal, FormGroup, ModalActions,
   InfoBox, PageHeader, toast
 } from '@/components/ui'
-import { Copy, Download, RefreshCw, Trash2, Tag, CheckSquare, Settings, FileText, Search, Printer, Building } from 'lucide-react'
+import { Copy, Download, RefreshCw, Trash2, Tag, CheckSquare, Settings, FileText, Search, Printer, Building, Ticket } from 'lucide-react'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
@@ -568,6 +568,76 @@ export default function PlanCodesPage() {
     if (logoImg.complete) logoImg.onload(new Event('load'))
   }
 
+  async function generateVoucherPDF() {
+    const selected = codes.filter(c => selectedCodeIds.has(c.code_id))
+    if (selected.length === 0) {
+      toast.error("Select at least one code first")
+      return
+    }
+
+    const templateImg = new Image()
+    templateImg.src = '/assets/voucher-card-template.png'
+
+    templateImg.onload = () => {
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+      const PAGE_W = 210, PAGE_H = 297
+      const COLS = 2, ROWS = 5
+      const PER_PAGE = COLS * ROWS
+
+      // Full bleed — cards fill the entire page edge to edge, no margin, no gap
+      const cardW = PAGE_W / COLS
+      const cardH = PAGE_H / ROWS
+
+      // Measured on the 1128x639 source template: gray code box + bottom-left ID spot
+      const BOX = { l: 0.054965, t: 0.439750, w: 0.451241, h: 0.120501 }
+      const ID = { x: 0.054965, y: 0.907667 }
+
+      selected.forEach((c, i) => {
+        const posInPage = i % PER_PAGE
+        if (posInPage === 0 && i !== 0) doc.addPage()
+        const row = Math.floor(posInPage / COLS)
+        const col = posInPage % COLS
+        const x = col * cardW
+        const y = row * cardH
+
+        doc.addImage(templateImg, 'PNG', x, y, cardW, cardH)
+
+        // Code, centered in the gray box — no charSpace (it was the overflow bug)
+        const boxX = x + BOX.l * cardW
+        const boxY = y + BOX.t * cardH
+        const boxW = BOX.w * cardW
+        const boxH = BOX.h * cardH
+
+        let fontSize = 14
+        doc.setFont('courier', 'bold')
+        doc.setFontSize(fontSize)
+        while (doc.getTextWidth(c.code) > boxW - 4 && fontSize > 6) {
+          fontSize -= 0.5
+          doc.setFontSize(fontSize)
+        }
+        doc.setTextColor(31, 41, 55)
+        doc.text(c.code, boxX + boxW / 2, boxY + boxH / 2 + boxH * 0.18, { align: 'center' })
+
+        // Card ID, bottom-left
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(8.5)
+        doc.setTextColor(148, 163, 184)
+        doc.text(`N° ${String(c.code_id).padStart(4, '0')}`, x + ID.x * cardW, y + ID.y * cardH)
+
+        // cut guide
+        doc.setDrawColor(190, 190, 190)
+        doc.setLineDashPattern([1, 1], 0)
+        doc.rect(x, y, cardW, cardH)
+        doc.setLineDashPattern([], 0)
+      })
+
+      doc.save(`Fitnessers_Vouchers_${new Date().toISOString().slice(0,10)}.pdf`)
+      toast.success(`${selected.length} voucher(s) exported`)
+    }
+
+    templateImg.onerror = () => toast.error("Voucher template not found at /assets/voucher-card-template.png")
+  }
+
   // Single Disable Logic
   async function disableSingleCode(codeStr: string) {
     if (!confirm(`Disable code ${codeStr}?`)) return
@@ -838,6 +908,13 @@ export default function PlanCodesPage() {
                   style={{ gap: 8 }}
                 >
                   <Building size={14} /> Assign to Company
+                </button>
+                <button 
+                  className="btn btn-primary btn-sm" 
+                  onClick={generateVoucherPDF}
+                  style={{ gap: 8 }}
+                >
+                  <Ticket size={14} /> Generate Vouchers
                 </button>
                 <button 
                   className="btn btn-ghost btn-sm" 
