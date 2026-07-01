@@ -22,15 +22,33 @@ export default function GymsPage() {
   const [deletingGym, setDeletingGym] = useState(false)
   const [pendingReqCount, setPendingReqCount] = useState(0)
   const [showDeleted, setShowDeleted] = useState(false)
+  const [protectionStatus, setProtectionStatus] = useState<Record<number, any>>({})
+  const [thresholdModal, setThresholdModal] = useState(false)
+  const [thresholdValue, setThresholdValue] = useState('5')
+  const [savingThreshold, setSavingThreshold] = useState(false)
+  const [gymThresholdModal, setGymThresholdModal] = useState<any>(null)
+  const [gymThresholdValue, setGymThresholdValue] = useState('')
+  const [savingGymThreshold, setSavingGymThreshold] = useState(false)
 
   async function load() {
     setLoading(true)
-    const [data, countRes] = await Promise.all([
+    const [data, countRes, protectionRes] = await Promise.all([
       fetch('/api/gyms').then(r => r.json()),
-      fetch('/api/women-only-requests/count').then(r => r.json())
+      fetch('/api/women-only-requests/count').then(r => r.json()),
+      supabase.rpc('admin_list_gym_member_protection_status', {
+        p_actor_id: '51a1ea96-73b4-4a4f-be84-3575f0670366'
+      })
     ])
     setGyms(data)
     setPendingReqCount(countRes.count || 0)
+    const protectionMap: Record<number, any> = {}
+    for (const row of protectionRes.data ?? []) {
+      protectionMap[row.gym_id] = row
+    }
+    setProtectionStatus(protectionMap)
+    if (protectionRes.data?.length) {
+      setThresholdValue(String(protectionRes.data[0].required_threshold))
+    }
     setLoading(false)
   }
   useEffect(() => { load() }, [])
@@ -163,6 +181,55 @@ export default function GymsPage() {
     }
   }
 
+  async function saveThreshold() {
+    const v = parseInt(thresholdValue)
+    if (!Number.isFinite(v) || v < 0) {
+      toast.error('Threshold must be a non-negative number')
+      return
+    }
+    setSavingThreshold(true)
+    try {
+      const { data, error } = await supabase.rpc('set_platform_setting_int', {
+        p_key: 'protect_member_slots_min_registered',
+        p_value: v,
+        p_actor_id: '51a1ea96-73b4-4a4f-be84-3575f0670366'
+      })
+      if (error) { toast.error('RPC Error: ' + error.message); return }
+      if (!data.ok) { toast.error('Error: ' + (data.error ?? 'unknown')); return }
+      toast.success('Threshold updated to ' + v)
+      setThresholdModal(false)
+      load()
+    } finally {
+      setSavingThreshold(false)
+    }
+  }
+
+  async function saveGymThreshold(resetToDefault = false) {
+    if (!gymThresholdModal) return
+    const v = resetToDefault ? null : parseInt(gymThresholdValue)
+    if (!resetToDefault) {
+      if (v === null || !Number.isFinite(v) || v < 0) {
+        toast.error('Threshold must be a non-negative number')
+        return
+      }
+    }
+    setSavingGymThreshold(true)
+    try {
+      const { data, error } = await supabase.rpc('admin_set_gym_protection_threshold', {
+        p_gym_id: gymThresholdModal.gym_id,
+        p_threshold: v,
+        p_actor_id: '51a1ea96-73b4-4a4f-be84-3575f0670366'
+      })
+      if (error) { toast.error('RPC Error: ' + error.message); return }
+      if (!data.ok) { toast.error('Error: ' + (data.error ?? 'unknown')); return }
+      toast.success(resetToDefault ? 'Reset to platform default' : `Threshold set to ${v}`)
+      setGymThresholdModal(null)
+      load()
+    } finally {
+      setSavingGymThreshold(false)
+    }
+  }
+
   return (
     <div className="page-enter">
       <PageHeader
@@ -261,7 +328,19 @@ export default function GymsPage() {
           <div style={{ overflowX: 'auto' }}>
             <table className="og-table">
               <thead><tr>
-                <th>Gym</th><th>City</th><th>Type</th><th>RNE</th><th>Rating</th><th>Premium</th><th>Created</th><th>Actions</th>
+                <th>Gym</th><th>City</th><th>Type</th><th>RNE</th><th>Rating</th>
+                <th style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  Registered Slots
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => setThresholdModal(true)}
+                    title="Edit threshold"
+                    style={{ padding: 2, height: 'auto', minHeight: 'auto' }}
+                  >
+                    ⚙️
+                  </button>
+                </th>
+                <th>Created</th><th>Actions</th>
               </tr></thead>
               <tbody>
                 {filtered.map((g: any) => {
@@ -303,7 +382,39 @@ export default function GymsPage() {
                           {stars(g.admin_rating)}
                         </button>
                       </td>
-                      <td>{g.is_premium ? <Badge label="Premium" variant="green" /> : <Badge label="Standard" variant="grey" />}</td>
+                      <td>
+                        {(() => {
+                          const ps = protectionStatus[g.gym_id]
+                          if (!ps) return <span style={{ color: '#64748B', fontSize: 12 }}>—</span>
+                          return (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-sm"
+                                onClick={() => {
+                                  setGymThresholdModal(g)
+                                  setGymThresholdValue(ps.is_custom_threshold ? String(ps.required_threshold) : '')
+                                }}
+                                style={{
+                                  padding: 0,
+                                  height: 'auto',
+                                  minHeight: 'auto',
+                                  lineHeight: 1,
+                                  fontFamily: 'var(--font-mono)',
+                                  fontSize: 12,
+                                  fontWeight: 700,
+                                  color: ps.eligible ? '#10B981' : '#8FA3BF',
+                                }}
+                              >
+                                {ps.registered_count}/{ps.required_threshold}
+                              </button>
+                              {ps.is_custom_threshold && <Badge label="Custom" variant="purple" />}
+                              {ps.currently_enabled && <Badge label="Protected" variant="blue" />}
+                              {!ps.eligible && <Badge label="Below threshold" variant="grey" />}
+                            </div>
+                          )
+                        })()}
+                      </td>
                       <td style={{ fontSize: 11, color: '#64748B', fontFamily: 'var(--font-mono)' }}>{fmtDate(g.created_at)}</td>
                       <td>
                         <div style={{ display: 'flex', gap: 6 }}>
@@ -484,6 +595,105 @@ export default function GymsPage() {
                 disabled={deletingGym}
               >
                 {deletingGym ? 'Deleting…' : 'Delete Gym'}
+              </button>
+            </ModalActions>
+          </>
+        )}
+      </Modal>
+
+      <Modal
+        open={thresholdModal}
+        onClose={() => { if (!savingThreshold) setThresholdModal(false) }}
+        title="Member Slots Protection Threshold"
+        subtitle="Fallback minimum used for gyms that don't have their own custom threshold."
+      >
+        <FormGroup label="Minimum Registered Members">
+          <input
+            type="number"
+            min="0"
+            className="og-input"
+            style={{ width: '100%' }}
+            value={thresholdValue}
+            onChange={e => setThresholdValue(e.target.value)}
+          />
+        </FormGroup>
+        <ModalActions>
+          <button className="btn btn-ghost" onClick={() => setThresholdModal(false)} disabled={savingThreshold}>Cancel</button>
+          <button className="btn btn-primary" onClick={saveThreshold} disabled={savingThreshold}>
+            {savingThreshold ? 'Saving…' : 'Save Threshold'}
+          </button>
+        </ModalActions>
+      </Modal>
+
+      <Modal
+        open={!!gymThresholdModal}
+        onClose={() => { if (!savingGymThreshold) setGymThresholdModal(null) }}
+        title={`Protection Threshold — ${gymThresholdModal?.name ?? ''}`}
+        subtitle="Minimum registered members before this gym can enable Protect Member Slots."
+      >
+        {gymThresholdModal && (
+          <>
+            <InfoBox>
+              <div>Gym: <strong style={{ color: '#E4EBF5' }}>{gymThresholdModal.name}</strong></div>
+              <div>City: <strong style={{ color: '#E4EBF5' }}>{gymThresholdModal.city ?? '—'}</strong></div>
+              <div>
+                Registered Members:{' '}
+                <strong style={{ color: '#E4EBF5' }}>
+                  {protectionStatus[gymThresholdModal.gym_id]?.registered_count ?? 0}
+                </strong>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                <span>Status:</span>
+                {protectionStatus[gymThresholdModal.gym_id]?.is_custom_threshold ? (
+                  <Badge label="Custom Override" variant="purple" />
+                ) : (
+                  <Badge label="Platform Default" variant="grey" />
+                )}
+              </div>
+            </InfoBox>
+
+            <FormGroup label="Gym Protection Threshold">
+              <input
+                type="number"
+                min="0"
+                className="og-input"
+                style={{ width: '100%' }}
+                value={gymThresholdValue}
+                placeholder={`Platform default: ${thresholdValue}`}
+                onChange={e => setGymThresholdValue(e.target.value)}
+              />
+              <div style={{ fontSize: 12, color: '#64748B', marginTop: 4 }}>
+                Platform default fallback: {thresholdValue}
+              </div>
+              {protectionStatus[gymThresholdModal.gym_id]?.is_custom_threshold && (
+                <div style={{ marginTop: 8 }}>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    style={{ color: '#EF4444', padding: 0, height: 'auto', minHeight: 'auto' }}
+                    onClick={() => saveGymThreshold(true)}
+                    disabled={savingGymThreshold}
+                  >
+                    Reset to platform default
+                  </button>
+                </div>
+              )}
+            </FormGroup>
+
+            <ModalActions>
+              <button
+                className="btn btn-ghost"
+                onClick={() => setGymThresholdModal(null)}
+                disabled={savingGymThreshold}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={() => saveGymThreshold(false)}
+                disabled={savingGymThreshold}
+              >
+                {savingGymThreshold ? 'Saving…' : 'Save Threshold'}
               </button>
             </ModalActions>
           </>
