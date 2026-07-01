@@ -1,0 +1,67 @@
+appId: com.fitnessers.opengym-admin
+productName: OpenGym Admin
+copyright: Copyright © 2024 Fitnessers
+
+# The compiled Electron entry point (compiled from electron/main.ts)
+main: electron-dist/main.js
+
+directories:
+  output: dist
+  buildResources: build
+
+# Files to include in the packaged app
+files:
+  # Next.js build output
+  - .next/**/*
+  # Next.js static public assets
+  - public/**/*
+  # Compiled Electron main + preload scripts
+  - electron-dist/**/*
+  # Node modules (required to run `next start` as subprocess)
+  - node_modules/**/*
+  # Project manifests
+  - package.json
+  - next.config.js
+  # Source is NOT included — only the compiled output
+  - "!src/**/*"
+  - "!electron/**/*.ts"
+  - "!.git/**/*"
+  - "!dist/**/*"
+
+# Optimize: bundle into an asar archive for faster startup
+asar: true
+
+# ── Windows ──────────────────────────────────────────────────────────────────
+win:
+  target:
+    - target: nsis       # Creates a standard Windows installer (.exe)
+      arch:
+        - x64            # 64-bit only; add ia32 if you need 32-bit support
+  icon: build/icon.png
+  # Prevents a console/terminal window from appearing alongside the app
+  requestedExecutionLevel: asInvoker
+
+# ── NSIS Installer Options ────────────────────────────────────────────────────
+nsis:
+  # One-click install with no prompts (simplest experience)
+  oneClick: false
+  # Let the user choose the installation directory
+  allowToChangeInstallationDirectory: true
+  # Add a shortcut to the desktop
+  createDesktopShortcut: true
+  # Add a shortcut to the Windows Start Menu
+  createStartMenuShortcut: true
+  # Installer display name
+  shortcutName: OpenGym Admin
+  # Show an install/uninstall progress dialog
+  installerIcon: build/icon.png
+  uninstallerIcon: build/icon.png
+  # License page (optional — comment out if no LICENSE.txt)
+  # license: LICENSE.txt
+
+# ── Publish (optional — for auto-updates) ────────────────────────────────────
+# Uncomment and configure if you want to set up auto-update via GitHub Releases
+# publish:
+#   provider: github
+#   owner: your-github-username
+#   repo: opengym-admin

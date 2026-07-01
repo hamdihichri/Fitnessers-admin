@@ -1,11 +1,21 @@
 {
   "name": "opengym-admin",
-  "version": "0.1.0",
+  "version": "1.0.0",
+  "description": "OpenGym Admin — Fitness Platform Management Dashboard",
   "private": true,
+  "author": {
+    "name": "Fitnessers",
+    "email": "admin@fitnessers.com"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "electron:compile": "tsc -p tsconfig.electron.json",
+    "electron:dev": "concurrently --kill-others-on-fail --names \"NEXT,ELECTRON\" --prefix-colors \"cyan,magenta\" \"npm run dev\" \"wait-on http://localhost:3000 && cross-env IS_DEV=true electron electron-dist/main.js\"",
+    "electron:start": "npm run build && npm run electron:compile && cross-env IS_DEV=false electron electron-dist/main.js",
+    "electron:build": "npm run build && npm run electron:compile && electron-builder --win --x64",
+    "electron:build:dir": "npm run build && npm run electron:compile && electron-builder --win --x64 --dir"
   },
   "dependencies": {
     "@supabase/ssr": "^0.9.0",
@@ -24,8 +34,13 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "autoprefixer": "^10",
+    "concurrently": "^9.2.3",
+    "cross-env": "^7.0.3",
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wait-on": "^8.0.5"
   }
 }

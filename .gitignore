@@ -22,3 +22,7 @@ node_modules/
 tmp/
 *.txt
 tsconfig.tsbuildinfo
+
+# Electron
+electron-dist/
+dist/

@@ -1,0 +1,38 @@
+{
+  "compilerOptions": {
+    // Target CommonJS — Electron's main process uses require(), not ESM
+    "module": "CommonJS",
+    "moduleResolution": "node",
+
+    // Target a modern Node.js version (Electron ships with recent Node)
+    "target": "ES2020",
+
+    // Node.js and Electron types
+    "lib": ["ES2020"],
+
+    // Output compiled JS to electron-dist/
+    "outDir": "./electron-dist",
+    "rootDir": "./electron",
+
+    // Standard safety flags
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+
+    // Source maps for easier debugging
+    "sourceMap": true,
+
+    // Do NOT inherit noEmit from tsconfig.json — we need actual output
+    "noEmit": false
+  },
+  "include": [
+    "electron/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "src",
+    ".next",
+    "dist"
+  ]
+}
