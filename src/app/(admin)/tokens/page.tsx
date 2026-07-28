@@ -65,7 +65,7 @@ export default function TokensPage() {
         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
           <Wallet size={14} /> Token Economy Summary
         </div>
-        <div className="grid-4-col">
+        <div className="grid-2-col" style={{ marginBottom: 16 }}>
           <KpiCard 
             label="Inactive in Vouchers" 
             value={fmt(econ?.total_inactive_voucher_tokens?.total)} 
@@ -78,6 +78,8 @@ export default function TokensPage() {
             sub="lifetime tokens issued" 
             accent="purple" 
           />
+        </div>
+        <div className="grid-4-col">
           <KpiCard 
             label="Active Tokens" 
             value={fmt(econ?.total_active_tokens)} 
@@ -93,13 +95,19 @@ export default function TokensPage() {
           <KpiCard 
             label="Not Yet Spent" 
             value={fmt(econ?.total_not_spent_tokens)} 
-            sub="issued but unused" 
+            sub="spendable, issued but unused" 
             accent="blue" 
+          />
+          <KpiCard 
+            label="Blocked (Frozen)" 
+            value={fmt(econ?.total_blocked_tokens?.total)} 
+            sub="expired, pending renewal rollover" 
+            accent="grey" 
           />
           <KpiCard 
             label="Burned Tokens" 
             value={fmt(econ?.total_burned_tokens?.total)} 
-            sub={econ ? `${fmt(econ.total_burned_tokens.burned_by_payout)} p. / ${fmt(econ.total_burned_tokens.burned_by_expiry)} e. / ${fmt(econ.total_burned_tokens.burned_by_cancellation)} c. / ${fmt(econ.total_burned_tokens.burned_other)} o.` : 'payouts / expired / canceled / other'} 
+            sub={econ ? `${fmt(econ.total_burned_tokens.burned_by_payout)} p. / ${fmt(econ.total_burned_tokens.burned_by_expiry)} legacy-exp. / ${fmt(econ.total_burned_tokens.burned_by_cancellation)} c. / ${fmt(econ.total_burned_tokens.burned_other)} o.` : 'payouts / legacy-expired / canceled / other'} 
             accent="red" 
           />
           <KpiCard 
@@ -114,14 +122,19 @@ export default function TokensPage() {
             sub={econ ? `${econ.total_trial_tokens_issued.grant_count} new-user grants` : 'new-user grants'} 
             accent="amber" 
           />
+          <KpiCard 
+            label="Expiring in 7d" 
+            value={data?.stats?.expiringSoon != null ? data.stats.expiringSoon + 'T' : '—'} 
+            sub="expiring active plan tokens"
+            subColor="#F59E0B" 
+            accent="amber" 
+          />
         </div>
       </div>
 
-      <div className="grid-4-col">
-        <KpiCard label="In Circulation" value={data?.stats?.circulation ?? '—'} sub="active tokens" accent="blue" />
+      <div className="grid-2-col" style={{ marginBottom: 24 }}>
         <KpiCard label="Credited Today" value={data?.stats?.todayCredit != null ? '+' + data.stats.todayCredit + 'T' : '—'} sub="tokens granted" subColor="#10B981" accent="green" />
         <KpiCard label="Debited Today" value={data?.stats?.todayDebit != null ? '-' + data.stats.todayDebit + 'T' : '—'} sub="tokens spent" subColor="#EF4444" accent="red" />
-        <KpiCard label="Expiring in 7d" value={data?.stats?.expiringSoon != null ? data.stats.expiringSoon + 'T' : '—'} subColor="#F59E0B" accent="amber" />
       </div>
 
       <Card title="Token Ledger" action={

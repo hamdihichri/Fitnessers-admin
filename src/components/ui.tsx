@@ -26,7 +26,7 @@ export function providerBadge(p: string | null | undefined) {
 }
 
 // ── KPI Card ───────────────────────────────────────────
-type KpiAccent = 'blue' | 'green' | 'amber' | 'red' | 'purple'
+type KpiAccent = 'blue' | 'green' | 'amber' | 'red' | 'purple' | 'grey'
 export function KpiCard({ label, value, sub, subColor, accent }: {
   label: string; value: string | number; sub?: string; subColor?: string; accent?: KpiAccent
 }) {
