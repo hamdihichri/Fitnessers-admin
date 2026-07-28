@@ -47,7 +47,16 @@ export default function LoginPage() {
     }
 
     return (
-        <div style={{ width: '100%', minHeight: '100vh', display: 'flex', position: 'relative', overflow: 'hidden' }}>
+        <div style={{
+            width: '100%',
+            minHeight: '100vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            position: 'relative',
+            overflow: 'hidden',
+            padding: '40px 24px',
+        }}>
 
             {/* Background grid decoration */}
             <div style={{
@@ -60,60 +69,77 @@ export default function LoginPage() {
             <div style={{ position: 'absolute', top: '-10%', left: '-5%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(79,107,244,0.12) 0%, transparent 70%)', pointerEvents: 'none' }} />
             <div style={{ position: 'absolute', bottom: '-10%', right: '-5%', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(139,92,246,0.10) 0%, transparent 70%)', pointerEvents: 'none' }} />
 
-            {/* Left panel — branding */}
+            {/* Centered content container */}
             <div style={{
-                flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center',
-                padding: '60px 64px', position: 'relative',
+                width: '100%',
+                maxWidth: '1000px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '56px',
+                zIndex: 1,
+                flexWrap: 'wrap',
             }}>
-                {/* Logo */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 64 }}>
-                    <div style={{
-                        width: 44, height: 44, borderRadius: 14, flexShrink: 0,
-                        background: 'linear-gradient(135deg, #2D3FBF, #4F6BF4)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        boxShadow: '0 8px 24px rgba(79,107,244,0.3)',
-                    }}>
-                        <Dumbbell size={22} color="#fff" />
-                    </div>
-                    <div>
-                        <div style={{ fontWeight: 800, fontSize: 20, letterSpacing: '-0.4px', color: 'var(--text-primary)' }}>Fitnessers</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '1px' }}>Admin Panel</div>
-                    </div>
-                </div>
-
-                <h1 style={{ fontWeight: 800, fontSize: 40, letterSpacing: '-1px', lineHeight: 1.15, color: 'var(--text-primary)', marginBottom: 16, maxWidth: 420 }}>
-                    Superadmin<br />
-                    <span style={{ background: 'linear-gradient(90deg, #4F6BF4, #8B5CF6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                        Control Center
-                    </span>
-                </h1>
-                <p style={{ fontSize: 15, color: 'var(--text-secondary)', lineHeight: 1.7, maxWidth: 380 }}>
-                    Manage gyms, users, payments, and the full platform from one place.
-                    Restricted to authorised administrators only.
-                </p>
-
-                {/* Stats row */}
-                <div style={{ display: 'flex', gap: 32, marginTop: 48 }}>
-                    {[
-                        { label: 'Gyms', icon: '🏋️' },
-                        { label: 'Users', icon: '👤' },
-                        { label: 'Payments', icon: '💳' },
-                        { label: 'Tokens', icon: '🪙' },
-                    ].map(s => (
-                        <div key={s.label} style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: 22, marginBottom: 4 }}>{s.icon}</div>
-                            <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{s.label}</div>
+                {/* Left panel — branding */}
+                <div style={{
+                    flex: '1 1 380px',
+                    maxWidth: '480px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                }}>
+                    {/* Logo */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 48 }}>
+                        <div style={{
+                            width: 44, height: 44, borderRadius: 14, flexShrink: 0,
+                            background: 'linear-gradient(135deg, #2D3FBF, #4F6BF4)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            boxShadow: '0 8px 24px rgba(79,107,244,0.3)',
+                        }}>
+                            <Dumbbell size={22} color="#fff" />
                         </div>
-                    ))}
-                </div>
-            </div>
+                        <div>
+                            <div style={{ fontWeight: 800, fontSize: 20, letterSpacing: '-0.4px', color: 'var(--text-primary)' }}>Fitnessers</div>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '1px' }}>Admin Panel</div>
+                        </div>
+                    </div>
 
-            {/* Right panel — form */}
-            <div style={{
-                width: 440, flexShrink: 0,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                padding: '40px 40px',
-            }}>
+                    <h1 style={{ fontWeight: 800, fontSize: 38, letterSpacing: '-1px', lineHeight: 1.15, color: 'var(--text-primary)', marginBottom: 16 }}>
+                        Superadmin<br />
+                        <span style={{ background: 'linear-gradient(90deg, #4F6BF4, #8B5CF6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                            Control Center
+                        </span>
+                    </h1>
+                    <p style={{ fontSize: 15, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+                        Manage gyms, users, payments, and the full platform from one place.
+                        Restricted to authorised administrators only.
+                    </p>
+
+                    {/* Stats row */}
+                    <div style={{ display: 'flex', gap: 32, marginTop: 40 }}>
+                        {[
+                            { label: 'Gyms', icon: '🏋️' },
+                            { label: 'Users', icon: '👤' },
+                            { label: 'Payments', icon: '💳' },
+                            { label: 'Tokens', icon: '🪙' },
+                        ].map(s => (
+                            <div key={s.label} style={{ textAlign: 'center' }}>
+                                <div style={{ fontSize: 22, marginBottom: 4 }}>{s.icon}</div>
+                                <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{s.label}</div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Right panel — form */}
+                <div style={{
+                    width: '100%',
+                    maxWidth: '420px',
+                    flexShrink: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                }}>
                 <div style={{
                     width: '100%',
                     background: 'var(--bg-surface)',
@@ -226,5 +252,6 @@ export default function LoginPage() {
                 </div>
             </div>
         </div>
+    </div>
     )
 }

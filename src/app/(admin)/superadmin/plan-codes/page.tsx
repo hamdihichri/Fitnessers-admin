@@ -578,10 +578,22 @@ export default function PlanCodesPage() {
       return
     }
 
-    const templateImg = new Image()
-    templateImg.src = '/assets/voucher-card-template.png'
+    const loadImage = (src: string): Promise<HTMLImageElement> => {
+      return new Promise((resolve, reject) => {
+        const img = new Image()
+        img.src = src
+        img.onload = () => resolve(img)
+        img.onerror = () => reject(new Error(`Failed to load image at ${src}`))
+      })
+    }
 
-    templateImg.onload = () => {
+    try {
+      const [proTemplateImg, basicTemplateImg, backTemplateImg] = await Promise.all([
+        loadImage('/assets/voucher-card-template.png'),
+        loadImage('/assets/Votcher-BASIC.png').catch(() => loadImage('/assets/voucher-card-template.png')),
+        loadImage('/assets/Votcher-BACK.png').catch(() => loadImage('/assets/voucher-card-template.png'))
+      ])
+
       const doc = new jsPDF({ unit: 'mm', format: 'a4' })
       const PAGE_W = 210, PAGE_H = 297
       const COLS = 2, ROWS = 5
@@ -591,54 +603,92 @@ export default function PlanCodesPage() {
       const cardW = PAGE_W / COLS
       const cardH = PAGE_H / ROWS
 
-      // Measured on the 1128x639 source template: gray code box + bottom-left ID spot
+      // Measured on the source template: gray code box + bottom-left ID spot
       const BOX = { l: 0.054965, t: 0.439750, w: 0.451241, h: 0.120501 }
       const ID = { x: 0.054965, y: 0.907667 }
 
-      selected.forEach((c, i) => {
-        const posInPage = i % PER_PAGE
-        if (posInPage === 0 && i !== 0) doc.addPage()
-        const row = Math.floor(posInPage / COLS)
-        const col = posInPage % COLS
-        const x = col * cardW
-        const y = row * cardH
+      const totalPages = Math.ceil(selected.length / PER_PAGE)
 
-        doc.addImage(templateImg, 'PNG', x, y, cardW, cardH)
+      for (let pageIdx = 0; pageIdx < totalPages; pageIdx++) {
+        if (pageIdx > 0) doc.addPage()
 
-        // Code, centered in the gray box — no charSpace (it was the overflow bug)
-        const boxX = x + BOX.l * cardW
-        const boxY = y + BOX.t * cardH
-        const boxW = BOX.w * cardW
-        const boxH = BOX.h * cardH
+        const pageCodes = selected.slice(pageIdx * PER_PAGE, (pageIdx + 1) * PER_PAGE)
 
-        let fontSize = 14
-        doc.setFont('courier', 'bold')
-        doc.setFontSize(fontSize)
-        while (doc.getTextWidth(c.code) > boxW - 4 && fontSize > 6) {
-          fontSize -= 0.5
+        // --- FRONT PAGE ---
+        pageCodes.forEach((c: any, posInPage: number) => {
+          const row = Math.floor(posInPage / COLS)
+          const col = posInPage % COLS
+          const x = col * cardW
+          const y = row * cardH
+
+          // Determine plan name to choose right voucher card template
+          const pName = (
+            c.plans?.name ||
+            c.plan_name ||
+            (c.plan_id ? plans.find(p => p.plan_id === c.plan_id)?.name : '') ||
+            selectedPlan?.name ||
+            ''
+          ).toLowerCase()
+
+          const templateImg = pName.includes('basic') ? basicTemplateImg : proTemplateImg
+
+          doc.addImage(templateImg, 'PNG', x, y, cardW, cardH)
+
+          // Code, centered in the gray box — no charSpace (it was the overflow bug)
+          const boxX = x + BOX.l * cardW
+          const boxY = y + BOX.t * cardH
+          const boxW = BOX.w * cardW
+          const boxH = BOX.h * cardH
+
+          let fontSize = 14
+          doc.setFont('courier', 'bold')
           doc.setFontSize(fontSize)
+          while (doc.getTextWidth(c.code) > boxW - 4 && fontSize > 6) {
+            fontSize -= 0.5
+            doc.setFontSize(fontSize)
+          }
+          doc.setTextColor(31, 41, 55)
+          doc.text(c.code, boxX + boxW / 2, boxY + boxH / 2 + boxH * 0.18, { align: 'center' })
+
+          // Card ID, bottom-left
+          doc.setFont('helvetica', 'normal')
+          doc.setFontSize(8.5)
+          doc.setTextColor(148, 163, 184)
+          doc.text(`N° ${String(c.code_id).padStart(4, '0')}`, x + ID.x * cardW, y + ID.y * cardH)
+
+          // cut guide — highly dashed cut line
+          doc.setDrawColor(100, 100, 100)
+          doc.setLineWidth(0.35)
+          doc.setLineDashPattern([1.5, 1.5], 0)
+          doc.rect(x, y, cardW, cardH)
+          doc.setLineDashPattern([], 0)
+        })
+
+        // --- BACK PAGE ---
+        doc.addPage()
+        for (let pos = 0; pos < PER_PAGE; pos++) {
+          const row = Math.floor(pos / COLS)
+          const col = pos % COLS
+          const x = col * cardW
+          const y = row * cardH
+
+          doc.addImage(backTemplateImg, 'PNG', x, y, cardW, cardH)
+
+          // cut guide — highly dashed cut line for back cards
+          doc.setDrawColor(60, 60, 60)
+          doc.setLineWidth(0.4)
+          doc.setLineDashPattern([1.5, 1.5], 0)
+          doc.rect(x, y, cardW, cardH)
+          doc.setLineDashPattern([], 0)
         }
-        doc.setTextColor(31, 41, 55)
-        doc.text(c.code, boxX + boxW / 2, boxY + boxH / 2 + boxH * 0.18, { align: 'center' })
-
-        // Card ID, bottom-left
-        doc.setFont('helvetica', 'normal')
-        doc.setFontSize(8.5)
-        doc.setTextColor(148, 163, 184)
-        doc.text(`N° ${String(c.code_id).padStart(4, '0')}`, x + ID.x * cardW, y + ID.y * cardH)
-
-        // cut guide
-        doc.setDrawColor(190, 190, 190)
-        doc.setLineDashPattern([1, 1], 0)
-        doc.rect(x, y, cardW, cardH)
-        doc.setLineDashPattern([], 0)
-      })
+      }
 
       doc.save(`Fitnessers_Vouchers_${new Date().toISOString().slice(0,10)}.pdf`)
-      toast.success(`${selected.length} voucher(s) exported`)
+      toast.success(`${selected.length} voucher(s) exported with back cards`)
+    } catch (err: any) {
+      console.error(err)
+      toast.error("Voucher template load failed")
     }
-
-    templateImg.onerror = () => toast.error("Voucher template not found at /assets/voucher-card-template.png")
   }
 
   // Single Disable Logic
