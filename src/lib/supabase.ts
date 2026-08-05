@@ -59,6 +59,22 @@ export async function grantTokens(userId: string, amount: number, reason: string
     p_reason: reason,
   });
 }
+
+export async function debitTokens(userId: string, amount: number, reason: string) {
+  return supabase.rpc('admin_debit_tokens', {
+    p_user_id: userId,
+    p_amount: amount,
+    p_reason: reason,
+  });
+}
+
+export async function cancelUserSubscription(userId: string, subscriptionId: number, reason?: string) {
+  return supabase.rpc('admin_cancel_subscription', {
+    p_user_id: userId,
+    p_subscription_id: subscriptionId,
+    p_reason: reason ?? null,
+  });
+}
 export async function pardonCap(gymId: string, userId: string, reason: string) {
   return supabase.rpc('superadmin_pardon_cap', {
     p_gym_id: gymId,

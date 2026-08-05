@@ -43,8 +43,8 @@ function resolveNodeExecutable(): string {
 function createWindow(): void {
 
   const iconPath = app.isPackaged
-    ? path.join(process.resourcesPath, 'build', 'icon.png')
-    : path.join(__dirname, '..', 'build', 'icon.png')
+    ? path.join(process.resourcesPath, 'build', 'icon.ico')
+    : path.join(__dirname, '..', 'build', 'icon.ico')
 
 
   mainWindow = new BrowserWindow({

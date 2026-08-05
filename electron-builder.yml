@@ -48,7 +48,7 @@ win:
     - target: nsis       # Creates a standard Windows installer (.exe)
       arch:
         - x64            # 64-bit only; add ia32 if you need 32-bit support
-  icon: build/icon.png
+  icon: build/icon.ico
   # Prevents a console/terminal window from appearing alongside the app
   requestedExecutionLevel: asInvoker
 
@@ -64,9 +64,16 @@ nsis:
   createStartMenuShortcut: true
   # Installer display name
   shortcutName: OpenGym Admin
-  # Show an install/uninstall progress dialog
-  installerIcon: build/icon.png
-  uninstallerIcon: build/icon.png
+  # NSIS requires a true .ico file — .png causes "invalid icon file" error
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  # Prevent requesting UAC elevation — avoids "exit code: null" crash on
+  # Windows when electron-builder runs the generated uninstaller stub.
+  # (electron-builder 25.x bug: uninstaller is executed silently and UAC
+  # kills it, reporting null exit code and aborting the build)
+  allowElevation: false
+  # Don't attempt to delete app data on uninstall (simplifies the script)
+  deleteAppDataOnUninstall: false
   # License page (optional — comment out if no LICENSE.txt)
   # license: LICENSE.txt
 

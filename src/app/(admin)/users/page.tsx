@@ -5,7 +5,7 @@ import { fmtDate, exportToCSV } from '@/lib/utils'
 import { Search, Download, FileText, MoreVertical, Star, ShieldAlert, CheckCircle2, History, XCircle, RefreshCw } from 'lucide-react'
 import { fetchJson } from '@/lib/fetchJson'
 import { swrFetch } from '@/lib/cache'
-import { banUser, unbanUser, grantTokens, pardonCap, liftSuspension, supabase } from '@/lib/supabase'
+import { banUser, unbanUser, grantTokens, debitTokens, cancelUserSubscription, pardonCap, liftSuspension, supabase } from '@/lib/supabase'
 
 export default function UsersPage() {
   const [users, setUsers] = useState<any[]>([])
@@ -18,6 +18,11 @@ export default function UsersPage() {
   const [adjReason, setAdjReason] = useState('adjustment')
   const [banModal, setBanModal] = useState<any>(null)
   const [unbanModal, setUnbanModal] = useState<any>(null)
+  
+  // Subscription Cancellation State
+  const [cancelSubModal, setCancelSubModal] = useState<any>(null)
+  const [cancelReason, setCancelReason] = useState('')
+  const [cancelLoading, setCancelLoading] = useState(false)
   
   // Suspension & Cap Modal State
   const [suspModal, setSuspModal] = useState<any>(null)
@@ -57,13 +62,63 @@ export default function UsersPage() {
     })
   }, [users, search, subFilter])
 
+  const creditReasons = [
+    { value: 'adjustment', label: 'Adjustment' },
+    { value: 'refund', label: 'Refund' },
+  ]
+  const debitReasons = [
+    { value: 'admin_debit', label: 'Debit / Correction' },
+  ]
+  const reasonOptions = adjDir === 'credit' ? creditReasons : debitReasons
+
   async function applyAdjust() {
     const amt = parseInt(adjAmt)
     if (!amt || amt < 1) return alert('Enter a valid amount')
-    const { error } = await grantTokens(adjustModal.user_id, adjDir === 'credit' ? amt : -amt, adjReason)
+
+    const { error } = adjDir === 'credit'
+      ? await grantTokens(adjustModal.user_id, amt, adjReason)
+      : await debitTokens(adjustModal.user_id, amt, adjReason)
+
     if (error) return toast.error(error.message)
-    toast.success('Tokens adjusted successfully')
+    toast.success(adjDir === 'credit' ? 'Tokens credited successfully' : 'Tokens debited successfully')
     setAdjustModal(null); setAdjAmt(''); load()
+  }
+
+  async function handleCancelSubscription() {
+    if (!cancelSubModal) return
+    const user = cancelSubModal
+    setCancelLoading(true)
+
+    let subId = user.sub?.subscription_id
+    if (!subId) {
+      // Query dynamically as a fallback if not present in user.sub
+      const { data } = await supabase
+        .from('subscriptions')
+        .select('subscription_id')
+        .eq('user_id', user.user_id)
+        .eq('status', 'active')
+        .maybeSingle()
+      subId = data?.subscription_id
+    }
+
+    if (!subId) {
+      setCancelLoading(false)
+      return toast.error('No active subscription found to cancel.')
+    }
+
+    const { data, error } = await cancelUserSubscription(user.user_id, subId, cancelReason || undefined)
+    setCancelLoading(false)
+
+    if (error) return toast.error(error.message)
+    if (!data?.ok) {
+      // RPC returned a handled failure (subscription_not_found, subscription_not_active, etc.)
+      return toast.error(data?.error ? data.error.replaceAll('_', ' ') : 'Cancellation failed.')
+    }
+
+    toast.success(`Subscription cancelled — ${data.total_removed ?? 0} tokens removed.`)
+    setCancelSubModal(null)
+    setCancelReason('')
+    load()
   }
 
   async function handleBan(user: any) {
@@ -220,6 +275,13 @@ export default function UsersPage() {
                               <DropdownItem title="Unban User" variant="success" onClick={() => { setUnbanModal(u); close(); }} />
                             )}
                             <DropdownItem title="Suspension & Cap" onClick={() => { openSuspModal(u); close(); }} />
+                            {u.sub && (
+                              <DropdownItem
+                                title="Force Cancel Subscription"
+                                variant="danger"
+                                onClick={() => { setCancelSubModal(u); setCancelReason(''); close(); }}
+                              />
+                            )}
                           </div>
                         )}
                       </Dropdown>
@@ -243,7 +305,10 @@ export default function UsersPage() {
               <CustomSelect
                 style={{ width: '100%' }}
                 value={adjDir}
-                onChange={setAdjDir}
+                onChange={(val) => {
+                  setAdjDir(val)
+                  setAdjReason(val === 'credit' ? 'adjustment' : 'admin_debit')
+                }}
                 options={[
                   { value: 'credit', label: '▲ Credit — Add tokens' },
                   { value: 'debit', label: '▼ Debit — Remove tokens' }
@@ -258,10 +323,7 @@ export default function UsersPage() {
                 style={{ width: '100%' }}
                 value={adjReason}
                 onChange={setAdjReason}
-                options={[
-                  { value: 'adjustment', label: 'Adjustment' },
-                  { value: 'refund', label: 'Refund' }
-                ]}
+                options={reasonOptions}
               />
             </FormGroup>
             <ModalActions>
@@ -291,6 +353,51 @@ export default function UsersPage() {
         confirmText="Unban User"
         variant="green"
       />
+
+      <Modal
+        open={!!cancelSubModal}
+        onClose={() => setCancelSubModal(null)}
+        title="Force Cancel Subscription"
+      >
+        {cancelSubModal && (
+          <>
+            <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16, lineHeight: 1.6 }}>
+              Are you sure you want to force cancel the subscription for <strong>{cancelSubModal.full_name}</strong>?
+            </div>
+            <div style={{ 
+              background: 'rgba(239, 68, 68, 0.1)', 
+              color: '#EF4444', 
+              border: '1px solid rgba(239, 68, 68, 0.2)', 
+              borderRadius: 8, 
+              padding: 12, 
+              fontSize: 12, 
+              marginBottom: 16,
+              fontWeight: 500
+            }}>
+              ⚠️ WARNING: This wipes the user's ENTIRE token balance and cannot be undone!
+            </div>
+            <FormGroup label="Cancellation Reason">
+              <input 
+                className="og-input" 
+                style={{ width: '100%' }} 
+                placeholder="Reason (optional)" 
+                value={cancelReason} 
+                onChange={e => setCancelReason(e.target.value)} 
+              />
+            </FormGroup>
+            <ModalActions>
+              <button className="btn btn-ghost" onClick={() => setCancelSubModal(null)}>Cancel</button>
+              <button 
+                className="btn btn-red" 
+                onClick={handleCancelSubscription}
+                disabled={cancelLoading}
+              >
+                {cancelLoading ? 'Cancelling...' : 'Force Cancel'}
+              </button>
+            </ModalActions>
+          </>
+        )}
+      </Modal>
 
       <Modal 
         open={!!suspModal} 
