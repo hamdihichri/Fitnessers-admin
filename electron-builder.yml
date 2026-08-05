@@ -3,7 +3,6 @@ productName: OpenGym Admin
 copyright: Copyright © 2024 Fitnessers
 
 # The compiled Electron entry point (compiled from electron/main.ts)
-main: electron-dist/main.js
 
 directories:
   output: dist
@@ -11,25 +10,37 @@ directories:
 
 # Files to include in the packaged app
 files:
-  # Next.js build output
+  # Next.js build output (includes standalone server + static chunks)
   - .next/**/*
   # Next.js static public assets
   - public/**/*
   # Compiled Electron main + preload scripts
   - electron-dist/**/*
-  # Node modules (required to run `next start` as subprocess)
+  # Node modules (still needed for any non-standalone paths)
   - node_modules/**/*
   # Project manifests
   - package.json
   - next.config.js
+  # Environment variables (Supabase keys etc. — required at runtime)
+  - .env.local
+  # App icon used by the Electron window
+  - build/**/*
   # Source is NOT included — only the compiled output
   - "!src/**/*"
   - "!electron/**/*.ts"
   - "!.git/**/*"
   - "!dist/**/*"
 
+# Next.js standalone mode requires public/ and .next/static/ to be copied
+# alongside the standalone server.js (they are NOT bundled automatically).
+extraFiles:
+  - from: public
+    to: resources/app/.next/standalone/public
+  - from: .next/static
+    to: resources/app/.next/standalone/.next/static
+
 # Optimize: bundle into an asar archive for faster startup
-asar: true
+asar: false
 
 # ── Windows ──────────────────────────────────────────────────────────────────
 win:

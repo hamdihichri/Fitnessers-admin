@@ -5,10 +5,11 @@ import {
   Menu,
 } from 'electron'
 import * as path from 'path'
+import * as fs from 'fs'
 import * as childProcess from 'child_process'
 import { waitForServer } from './wait-for-server'
 
-// ── Constants ──────────────────────────────────────────────────────────────────
+// ── Constants ────────────────────────────────────────────────────────────────
 const DEV = process.env.IS_DEV === 'true'
 const PORT = 3000
 const APP_URL = `http://localhost:${PORT}`
@@ -16,129 +17,243 @@ const APP_URL = `http://localhost:${PORT}`
 let mainWindow: BrowserWindow | null = null
 let nextServer: childProcess.ChildProcess | null = null
 
-// ── Create Window ──────────────────────────────────────────────────────────────
+
+// ── Resolve the Node.js executable ──────────────────────────────────────────
+// In the packaged app process.execPath is "OpenGym Admin.exe", NOT "electron.exe".
+// The simple string-replace would silently return the wrong path and Electron
+// would spawn *itself* as the Next.js server, causing an infinite launch loop.
+// Instead we look for node.exe next to the Electron binary, then fall back to
+// the system PATH.
+function resolveNodeExecutable(): string {
+  const electronDir = path.dirname(process.execPath)
+  const candidates = [
+    path.join(electronDir, 'node.exe'),                  // bundled alongside electron.exe
+    path.join(electronDir, 'resources', 'node.exe'),     // some electron-builder layouts
+    'node',                                               // system PATH fallback
+  ]
+  for (const candidate of candidates) {
+    if (candidate === 'node') return candidate            // always accept PATH fallback
+    if (fs.existsSync(candidate)) return candidate
+  }
+  return 'node'
+}
+
+
+// ── Create Window ────────────────────────────────────────────────────────────
 function createWindow(): void {
+
+  const iconPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'build', 'icon.png')
+    : path.join(__dirname, '..', 'build', 'icon.png')
+
+
   mainWindow = new BrowserWindow({
     width: 1440,
     height: 900,
     minWidth: 1024,
     minHeight: 600,
-    show: false, // show only after content loads
+    show: false,
     autoHideMenuBar: true,
-    icon: path.join(__dirname, '..', 'build', 'icon.png'),
+    icon: iconPath,
+
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,   // ✅ security: isolate renderer from main
-      nodeIntegration: false,   // ✅ security: no Node in renderer
-      sandbox: true,            // ✅ security: sandbox renderer process
-      webSecurity: true,        // ✅ security: enforce same-origin
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      webSecurity: true,
     },
   })
 
-  // Hide the native menu bar completely
+
   Menu.setApplicationMenu(null)
 
-  // Show window gracefully once ready
+
   mainWindow.once('ready-to-show', () => {
     mainWindow?.show()
   })
 
-  // Open external links in the default system browser, not in Electron
+
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+
     if (!url.startsWith(APP_URL)) {
       shell.openExternal(url)
       return { action: 'deny' }
     }
+
     return { action: 'allow' }
   })
 
+
   mainWindow.webContents.on('will-navigate', (event, url) => {
+
     if (!url.startsWith(APP_URL)) {
       event.preventDefault()
       shell.openExternal(url)
     }
+
   })
+
 
   mainWindow.on('closed', () => {
     mainWindow = null
   })
 }
 
-// ── Start Next.js server (production only) ────────────────────────────────────
+
+
+// ── Start Next.js server (production only) ───────────────────────────────────
 function startNextServer(): Promise<void> {
+
   return new Promise((resolve, reject) => {
-    // Resolve the project root (two levels up from electron-dist/main.js)
-    const projectRoot = path.join(__dirname, '..')
+
+
+    const projectRoot = app.isPackaged
+      ? path.join(process.resourcesPath, 'app')
+      : path.join(__dirname, '..')
+
+    // With `output: 'standalone'`, Next.js generates a self-contained server
+    // at .next/standalone/server.js — no need to invoke the `next` CLI.
+    const standaloneDir = path.join(projectRoot, '.next', 'standalone')
+    const serverScript = path.join(standaloneDir, 'server.js')
+
+    const nodeExec = resolveNodeExecutable()
+
+    console.log('Node executable:', nodeExec)
+    console.log('Project root:', projectRoot)
+    console.log('Standalone server:', serverScript)
+
 
     nextServer = childProcess.spawn(
-      process.execPath.replace('electron.exe', 'node.exe').replace('electron', 'node'),
-      [path.join(projectRoot, 'node_modules', '.bin', 'next'), 'start', '--port', String(PORT)],
+
+      nodeExec,
+
+      [serverScript],
+
       {
-        cwd: projectRoot,
-        env: { ...process.env, NODE_ENV: 'production' },
-        shell: true,
-        windowsHide: true, // ✅ no terminal window visible on Windows
+        // cwd must be the standalone dir so it can find its own node_modules
+        cwd: standaloneDir,
+        env: {
+          ...process.env,
+          NODE_ENV: 'production',
+          PORT: String(PORT),
+          HOSTNAME: '127.0.0.1',
+        },
+        windowsHide: true,
+        shell: false
       }
+
     )
 
+
     nextServer.stdout?.on('data', (data: Buffer) => {
-      const msg = data.toString()
-      console.log('[next]', msg)
+      console.log('[next]', data.toString())
     })
+
 
     nextServer.stderr?.on('data', (data: Buffer) => {
-      const msg = data.toString()
-      console.error('[next error]', msg)
+      console.error('[next error]', data.toString())
     })
+
 
     nextServer.on('error', (err) => {
-      console.error('Failed to start Next.js server:', err)
+
+      console.error(
+        'Failed to start Next.js server:',
+        err
+      )
+
       reject(err)
+
     })
 
-    // The process started; actual readiness is checked by waitForServer
+
     resolve()
+
   })
+
 }
 
-// ── App Lifecycle ──────────────────────────────────────────────────────────────
+
+
+// ── App Lifecycle ────────────────────────────────────────────────────────────
+
 app.whenReady().then(async () => {
+
   try {
+
+
     if (!DEV) {
-      // In production: start Next.js server ourselves, then wait for it
+
       await startNextServer()
+
     }
 
-    // Wait until the Next.js server actually responds (dev or prod)
-    await waitForServer(APP_URL, 60_000)
+
+    await waitForServer(
+      APP_URL,
+      60000
+    )
+
 
     createWindow()
+
     mainWindow?.loadURL(APP_URL)
+
+
+
   } catch (err) {
-    console.error('Failed to launch:', err)
+
+    console.error(
+      'Failed to launch:',
+      err
+    )
+
     app.quit()
+
   }
+
+
 
   app.on('activate', () => {
-    // macOS: re-open window when dock icon is clicked
+
     if (BrowserWindow.getAllWindows().length === 0) {
+
       createWindow()
+
       mainWindow?.loadURL(APP_URL)
+
     }
+
   })
+
+
 })
+
+
 
 app.on('window-all-closed', () => {
-  // On Windows/Linux: quit when all windows are closed
+
   if (process.platform !== 'darwin') {
+
     app.quit()
+
   }
+
 })
 
+
+
 app.on('before-quit', () => {
-  // Cleanly kill the Next.js child process if we spawned it
+
+
   if (nextServer && !nextServer.killed) {
+
     nextServer.kill()
+
     nextServer = null
+
   }
+
+
 })

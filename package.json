@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "OpenGym Admin — Fitness Platform Management Dashboard",
   "private": true,
+  "main": "electron-dist/main.js",
   "author": {
     "name": "Fitnessers",
     "email": "admin@fitnessers.com"
