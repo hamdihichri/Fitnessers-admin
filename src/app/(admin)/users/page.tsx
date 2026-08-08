@@ -13,6 +13,7 @@ export default function UsersPage() {
   const [search, setSearch] = useState('')
   const [subFilter, setSubFilter] = useState('')
   const [cityFilter, setCityFilter] = useState('')
+  const [genderFilter, setGenderFilter] = useState('')
   const [adjustModal, setAdjustModal] = useState<any>(null)
   const [adjDir, setAdjDir] = useState('credit')
   const [adjAmt, setAdjAmt] = useState('')
@@ -74,9 +75,12 @@ export default function UsersPage() {
       let matchCity = true
       if (cityFilter) matchCity = u.city === cityFilter
 
-      return matchSearch && matchSub && matchCity
+      let matchGender = true
+      if (genderFilter) matchGender = u.gender?.toLowerCase() === genderFilter
+
+      return matchSearch && matchSub && matchCity && matchGender
     })
-  }, [users, search, subFilter, cityFilter])
+  }, [users, search, subFilter, cityFilter, genderFilter])
 
   const creditReasons = [
     { value: 'adjustment', label: 'Adjustment' },
@@ -250,6 +254,15 @@ export default function UsersPage() {
             ...uniqueCities.map(c => ({ value: c, label: c }))
           ]}
         />
+        <CustomSelect
+          value={genderFilter}
+          onChange={setGenderFilter}
+          options={[
+            { value: '', label: 'All Genders' },
+            { value: 'male', label: 'Male' },
+            { value: 'female', label: 'Female' }
+          ]}
+        />
       </FilterBar>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
@@ -257,6 +270,8 @@ export default function UsersPage() {
         <StatPill label="With Sub" value={users.filter(u => u.sub).length} />
         <StatPill label="Corporate" value={users.filter(u => u.isCorporate).length} />
         <StatPill label="No Plan" value={users.filter(u => !u.sub).length} />
+        <StatPill label="Male" value={users.filter(u => u.gender?.toLowerCase() === 'male').length} />
+        <StatPill label="Female" value={users.filter(u => u.gender?.toLowerCase() === 'female').length} />
       </div>
 
       <Card>
