@@ -12,6 +12,7 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [subFilter, setSubFilter] = useState('')
+  const [cityFilter, setCityFilter] = useState('')
   const [adjustModal, setAdjustModal] = useState<any>(null)
   const [adjDir, setAdjDir] = useState('credit')
   const [adjAmt, setAdjAmt] = useState('')
@@ -50,6 +51,17 @@ export default function UsersPage() {
   }
   useEffect(() => { load() }, [])
 
+  // Dynamically extract unique cities from loaded users
+  const uniqueCities = useMemo(() => {
+    const citiesSet = new Set<string>()
+    users.forEach(u => {
+      if (u.city && typeof u.city === 'string' && u.city.trim() !== '') {
+        citiesSet.add(u.city.trim())
+      }
+    })
+    return Array.from(citiesSet).sort()
+  }, [users])
+
   const filtered = useMemo(() => {
     return users.filter(u => {
       const q = search.toLowerCase()
@@ -58,9 +70,13 @@ export default function UsersPage() {
       if (subFilter === 'active') matchSub = !!u.sub
       if (subFilter === 'expired') matchSub = !u.sub
       if (subFilter === 'corporate') matchSub = u.isCorporate
-      return matchSearch && matchSub
+
+      let matchCity = true
+      if (cityFilter) matchCity = u.city === cityFilter
+
+      return matchSearch && matchSub && matchCity
     })
-  }, [users, search, subFilter])
+  }, [users, search, subFilter, cityFilter])
 
   const creditReasons = [
     { value: 'adjustment', label: 'Adjustment' },
@@ -220,10 +236,18 @@ export default function UsersPage() {
           value={subFilter}
           onChange={setSubFilter}
           options={[
-            { value: '', label: 'All Users' },
+            { value: '', label: 'All Statuses' },
             { value: 'active', label: 'With Subscription' },
             { value: 'expired', label: 'No Plan' },
             { value: 'corporate', label: 'Corporate' }
+          ]}
+        />
+        <CustomSelect
+          value={cityFilter}
+          onChange={setCityFilter}
+          options={[
+            { value: '', label: 'All Cities' },
+            ...uniqueCities.map(c => ({ value: c, label: c }))
           ]}
         />
       </FilterBar>

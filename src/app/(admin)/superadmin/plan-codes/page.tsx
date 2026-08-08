@@ -597,7 +597,7 @@ export default function PlanCodesPage() {
       const doc = new jsPDF({ unit: 'mm', format: 'a4' })
       const PAGE_W = 210, PAGE_H = 297
       const COLS = 2, ROWS = 5
-      const PER_PAGE = COLS * ROWS
+      const PER_PAGE = COLS * ROWS  // 10 cards per page
 
       // Full bleed — cards fill the entire page edge to edge, no margin, no gap
       const cardW = PAGE_W / COLS
@@ -663,24 +663,27 @@ export default function PlanCodesPage() {
           doc.rect(x, y, cardW, cardH)
           doc.setLineDashPattern([], 0)
         })
+      }
 
-        // --- BACK PAGE ---
-        doc.addPage()
-        for (let pos = 0; pos < PER_PAGE; pos++) {
-          const row = Math.floor(pos / COLS)
-          const col = pos % COLS
-          const x = col * cardW
-          const y = row * cardH
+      // --- ONE SINGLE BACK PAGE at the end (always 10 slots = 1 page) ---
+      // Regardless of how many codes were generated, only one back page is
+      // appended at the very end of the PDF. This matches a standard print
+      // workflow where you flip a single sheet for the back of the last batch.
+      doc.addPage()
+      for (let pos = 0; pos < PER_PAGE; pos++) {
+        const row = Math.floor(pos / COLS)
+        const col = pos % COLS
+        const x = col * cardW
+        const y = row * cardH
 
-          doc.addImage(backTemplateImg, 'PNG', x, y, cardW, cardH)
+        doc.addImage(backTemplateImg, 'PNG', x, y, cardW, cardH)
 
-          // cut guide — highly dashed cut line for back cards
-          doc.setDrawColor(60, 60, 60)
-          doc.setLineWidth(0.4)
-          doc.setLineDashPattern([1.5, 1.5], 0)
-          doc.rect(x, y, cardW, cardH)
-          doc.setLineDashPattern([], 0)
-        }
+        // cut guide — highly dashed cut line for back cards
+        doc.setDrawColor(60, 60, 60)
+        doc.setLineWidth(0.4)
+        doc.setLineDashPattern([1.5, 1.5], 0)
+        doc.rect(x, y, cardW, cardH)
+        doc.setLineDashPattern([], 0)
       }
 
       doc.save(`Fitnessers_Vouchers_${new Date().toISOString().slice(0,10)}.pdf`)

@@ -18,6 +18,44 @@ let mainWindow: BrowserWindow | null = null
 let nextServer: childProcess.ChildProcess | null = null
 
 
+// ── Load .env.local for server-side variables ────────────────────────────────
+// Next.js standalone server.js does NOT auto-load .env.local at runtime.
+// We must read it here in the Electron main process and pass the values
+// explicitly to the spawned child process so that ADMIN_EMAIL, ADMIN_PASSWORD,
+// JWT_SECRET, etc. are available inside the API routes.
+function loadEnvFile(projectRoot: string): Record<string, string> {
+  const envVars: Record<string, string> = {}
+
+  // Candidate .env files in priority order (matches Next.js resolution)
+  const candidates = [
+    path.join(projectRoot, '.env.local'),
+    path.join(projectRoot, '.env.production'),
+    path.join(projectRoot, '.env'),
+  ]
+
+  for (const envPath of candidates) {
+    if (!fs.existsSync(envPath)) continue
+    console.log('[env] Loading', envPath)
+    const content = fs.readFileSync(envPath, 'utf-8')
+    for (const line of content.split(/\r?\n/)) {
+      const trimmed = line.trim()
+      if (!trimmed || trimmed.startsWith('#')) continue
+      const eqIdx = trimmed.indexOf('=')
+      if (eqIdx === -1) continue
+      const key = trimmed.slice(0, eqIdx).trim()
+      const val = trimmed.slice(eqIdx + 1).trim()
+      // Only set if not already defined (first file wins)
+      if (!(key in envVars)) {
+        envVars[key] = val
+      }
+    }
+    break // only load first file found
+  }
+
+  return envVars
+}
+
+
 // ── Resolve the Node.js executable ──────────────────────────────────────────
 // In the packaged app process.execPath is "OpenGym Admin.exe", NOT "electron.exe".
 // The simple string-replace would silently return the wrong path and Electron
@@ -123,6 +161,18 @@ function startNextServer(): Promise<void> {
     console.log('Project root:', projectRoot)
     console.log('Standalone server:', serverScript)
 
+    // Guard: if server.js doesn't exist the app would hang waiting for the
+    // port to open. Fail fast with a clear error instead.
+    if (!fs.existsSync(serverScript)) {
+      const msg = `Next.js standalone server not found at:\n${serverScript}\n\nRun "npm run build" before packaging.`
+      console.error(msg)
+      reject(new Error(msg))
+      return
+    }
+
+    // Load server-side env vars from .env.local (not bundled by Next.js
+    // standalone — must be passed explicitly to the child process).
+    const envFileVars = loadEnvFile(projectRoot)
 
     nextServer = childProcess.spawn(
 
@@ -135,6 +185,9 @@ function startNextServer(): Promise<void> {
         cwd: standaloneDir,
         env: {
           ...process.env,
+          // Explicit env file vars come first so they are not overridden by
+          // an empty process.env entry on Windows.
+          ...envFileVars,
           NODE_ENV: 'production',
           PORT: String(PORT),
           HOSTNAME: '127.0.0.1',

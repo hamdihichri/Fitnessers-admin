@@ -24,11 +24,26 @@ export async function GET(req: NextRequest) {
 
   if (!ledger.data?.length) return NextResponse.json({ rows:[], stats:{}, economySummary: economy.data ?? null })
 
-  const userIds = [...new Set(ledger.data.map(l => l.user_id))]
-  const { data: profiles } = await sb.from('profiles').select('user_id,full_name').in('user_id', userIds)
-  const pm = Object.fromEntries((profiles ?? []).map(p => [p.user_id, p]))
+  const userIds = [...new Set(ledger.data.map(l => l.user_id).filter(Boolean))]
+  const gymIds = [...new Set(ledger.data.map(l => l.gym_id).filter(Boolean))]
 
-  const rows = ledger.data.map(l => ({ ...l, profile: pm[l.user_id] ?? null }))
+  const [{ data: profiles }, { data: gyms }] = await Promise.all([
+    userIds.length
+      ? sb.from('profiles').select('user_id,full_name,email').in('user_id', userIds)
+      : Promise.resolve({ data: [] }),
+    gymIds.length
+      ? sb.from('gyms').select('gym_id,name').in('gym_id', gymIds)
+      : Promise.resolve({ data: [] }),
+  ])
+
+  const pm = Object.fromEntries((profiles ?? []).map(p => [p.user_id, p]))
+  const gm = Object.fromEntries((gyms ?? []).map(g => [g.gym_id, g]))
+
+  const rows = ledger.data.map(l => ({
+    ...l,
+    profile: l.user_id ? pm[l.user_id] ?? null : null,
+    gym: l.gym_id ? gm[l.gym_id] ?? null : null
+  }))
   const totalC = rows.filter(l=>l.direction==='credit').reduce((s,l)=>s+l.amount,0)
   const totalD = rows.filter(l=>l.direction==='debit').reduce((s,l)=>s+l.amount,0)
 
