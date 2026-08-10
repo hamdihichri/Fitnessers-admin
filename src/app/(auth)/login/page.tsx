@@ -1,8 +1,9 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Dumbbell, Eye, EyeOff, Lock, Mail, AlertCircle } from 'lucide-react'
+import { Eye, EyeOff, Lock, Mail, AlertCircle } from 'lucide-react'
 import { createBrowserClient } from '@/lib/supabaseBrowser'
+import { AppIconLight } from '@/components/AppIconLight'
 
 export default function LoginPage() {
     const router = useRouter()
@@ -61,13 +62,13 @@ export default function LoginPage() {
             {/* Background grid decoration */}
             <div style={{
                 position: 'absolute', inset: 0, pointerEvents: 'none',
-                backgroundImage: 'linear-gradient(rgba(79,107,244,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(79,107,244,0.04) 1px, transparent 1px)',
+                backgroundImage: 'linear-gradient(rgba(45,212,191,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(45,212,191,0.04) 1px, transparent 1px)',
                 backgroundSize: '48px 48px',
             }} />
 
             {/* Glow blobs */}
-            <div style={{ position: 'absolute', top: '-10%', left: '-5%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(79,107,244,0.12) 0%, transparent 70%)', pointerEvents: 'none' }} />
-            <div style={{ position: 'absolute', bottom: '-10%', right: '-5%', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(139,92,246,0.10) 0%, transparent 70%)', pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', top: '-10%', left: '-5%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(45,212,191,0.15) 0%, transparent 70%)', pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', bottom: '-10%', right: '-5%', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(20,184,166,0.12) 0%, transparent 70%)', pointerEvents: 'none' }} />
 
             {/* Centered content container */}
             <div style={{
@@ -90,14 +91,7 @@ export default function LoginPage() {
                 }}>
                     {/* Logo */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 48 }}>
-                        <div style={{
-                            width: 44, height: 44, borderRadius: 14, flexShrink: 0,
-                            background: 'linear-gradient(135deg, #2D3FBF, #4F6BF4)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            boxShadow: '0 8px 24px rgba(79,107,244,0.3)',
-                        }}>
-                            <Dumbbell size={22} color="#fff" />
-                        </div>
+                        <AppIconLight height={44} />
                         <div>
                             <div style={{ fontWeight: 800, fontSize: 20, letterSpacing: '-0.4px', color: 'var(--text-primary)' }}>Fitnessers</div>
                             <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '1px' }}>Admin Panel</div>
@@ -106,7 +100,7 @@ export default function LoginPage() {
 
                     <h1 style={{ fontWeight: 800, fontSize: 38, letterSpacing: '-1px', lineHeight: 1.15, color: 'var(--text-primary)', marginBottom: 16 }}>
                         Superadmin<br />
-                        <span style={{ background: 'linear-gradient(90deg, #4F6BF4, #8B5CF6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                        <span style={{ background: 'linear-gradient(90deg, var(--secondary), #0D9488)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                             Control Center
                         </span>
                     </h1>
@@ -227,12 +221,12 @@ export default function LoginPage() {
                             style={{
                                 marginTop: 8,
                                 width: '100%', padding: '12px', borderRadius: 10,
-                                background: loading ? 'rgba(79,107,244,0.5)' : 'linear-gradient(135deg, #4F6BF4, #6B83F6)',
-                                color: '#fff', border: 'none', fontWeight: 700, fontSize: 14,
+                                background: loading ? 'rgba(45,212,191,0.5)' : 'linear-gradient(135deg, var(--secondary), #14B8A6)',
+                                color: '#131515', border: 'none', fontWeight: 700, fontSize: 14,
                                 cursor: loading ? 'not-allowed' : 'pointer',
                                 fontFamily: 'var(--font-jakarta)',
                                 transition: 'all 0.2s',
-                                boxShadow: loading ? 'none' : '0 4px 16px rgba(79,107,244,0.35)',
+                                boxShadow: loading ? 'none' : '0 4px 16px rgba(45,212,191,0.35)',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                             }}
                         >

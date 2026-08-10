@@ -5,6 +5,9 @@ import { ThemeProvider } from '@/lib/theme'
 export const metadata: Metadata = {
   title: 'Fitnessers Admin',
   description: 'Super Admin Dashboard',
+  icons: {
+    icon: '/assets/appIconLight.svg',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

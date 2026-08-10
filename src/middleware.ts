@@ -10,8 +10,8 @@ function getSecret() {
 export async function middleware(req: NextRequest) {
     const { pathname } = req.nextUrl
 
-    // Allow public paths through
-    if (PUBLIC_PATHS.some(p => pathname.startsWith(p))) {
+    // Allow public paths & static assets through
+    if (pathname.startsWith('/assets/') || PUBLIC_PATHS.some(p => pathname.startsWith(p))) {
         return NextResponse.next()
     }
 
@@ -33,5 +33,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-    matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+    matcher: ['/((?!_next/static|_next/image|assets|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)'],
 }

@@ -6,6 +6,7 @@ import {
   Building, BarChart3, Monitor, LogOut, Dumbbell, CalendarDays, Receipt, ShieldCheck, PlusCircle, LifeBuoy, Radio, Ticket, X
 } from 'lucide-react'
 import { createBrowserClient } from '@/lib/supabaseBrowser'
+import { AppIconLight } from '@/components/AppIconLight'
 
 const NAV = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Overview' },
@@ -56,16 +57,12 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
         borderBottom: '1px solid var(--border)',
         display: 'flex', alignItems: 'center', gap: 10,
       }}>
-        <img
-          src="/assets/logo 1.png"
-          alt="Fitnessers Logo"
-          style={{ height: 36, objectFit: 'contain' }}
-        />
+        <AppIconLight height={42} />
         <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 800, fontSize: 13, letterSpacing: '-0.03em', color: 'var(--text-primary)', fontFamily: 'var(--font-heading)' }}>
+          <div style={{ fontWeight: 800, fontSize: 20, letterSpacing: '0.02em', color: 'var(--text-primary)', fontFamily: 'var(--font-heading)', lineHeight: 1.1 }}>
             Fitnessers
           </div>
-          <div style={{ fontSize: 9, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 2 }}>
             Admin Panel
           </div>
         </div>

@@ -10,79 +10,106 @@
    #D7F2F4 Accent Color
  ══════════════════════════════════════════ */
 :root {
-  --accent-blue: #D7F2F4;
-  --accent-blue-h: #BCE8EC;
-  --accent-glow: rgba(215, 242, 244, 0.18);
-  --nav-active-bg: rgba(15, 23, 42, 0.06);
-
   --font-jakarta: 'Plus Jakarta Sans', sans-serif;
   --font-heading: 'Outfit', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  --glass-bg: rgba(18, 19, 22, 0.7);
-  --glass-border: rgba(255, 255, 255, 0.08);
   --glass-blur: blur(20px);
-
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --anim-speed: 0.4s;
-
   --text-xs: 10px;
 }
 
-/* Light theme */
-[data-theme="light"] {
-  --bg-base: #f4f5fb;
-  --bg-surface: #ffffff;
-  --bg-topbar: #ffffff;
-  --bg-input: #f3f4f6;
-  --bg-hover: rgba(15, 23, 42, 0.04);
+/* 1. Dark Mode Palette (Default) */
+[data-theme="dark"], :root:not([data-theme="light"]) {
+  /* Design Tokens */
+  --primary: #131515;
+  --secondary: #2DD4BF;
+  --secondaryBackground: #171919;
+  --tertiary: #232525;
+  --primaryText: #F8FAFC;
+  --secondaryText: #94A3B8;
+  --accentText: #2DD4BF;
 
-  --border: #e5e7eb;
-  --border-input: #d1d5db;
+  /* App Mappings */
+  --bg-base: var(--primary);
+  --bg-surface: var(--secondaryBackground);
+  --bg-topbar: var(--secondaryBackground);
+  --bg-input: #232525;
+  --bg-hover: rgba(45, 212, 191, 0.06);
 
-  --text-primary: #0f172a;
-  --text-secondary: #4b5563;
-  --text-muted: #6b7280;
+  --border: var(--tertiary);
+  --border-input: var(--tertiary);
+  --border-tertiary: var(--tertiary);
 
-  --nav-active-bg: rgba(15, 23, 42, 0.06);
+  --text-primary: var(--primaryText);
+  --text-secondary: var(--secondaryText);
+  --text-muted: var(--secondaryText);
+  --text-accent: var(--accentText);
 
-  --scrollbar: #cbd5f5;
-  --modal-overlay: rgba(15, 23, 42, 0.35);
-  --modal-bg: #ffffff;
-  --shadow-modal: 0 24px 60px rgba(15, 23, 42, 0.18);
+  --accent-blue: var(--secondary);
+  --accent-blue-h: #14B8A6;
+  --accent-glow: rgba(45, 212, 191, 0.2);
+  --nav-active-bg: rgba(45, 212, 191, 0.12);
 
-  --avatar-grad: linear-gradient(135deg, #e5e7eb, #D7F2F4);
-  --sa-grad: linear-gradient(135deg, #e5e7eb, #D7F2F4);
+  --glass-bg: rgba(23, 25, 25, 0.75);
+  --glass-border: rgba(35, 37, 37, 0.6);
 
-  --spin-track: #e5e7eb;
-}
-
-/* Dark theme (default) */
-[data-theme="dark"] {
-  --bg-base: #0B0B0C;
-  --bg-surface: #121316;
-  --bg-topbar: #121316;
-  --bg-input: #18191E;
-  --bg-hover: rgba(255, 255, 255, 0.03);
-
-  --border: #1E1F24;
-  --border-input: #27282F;
-
-  --text-primary: #FFFFFF;
-  --text-secondary: #9FA1A8;
-  --text-muted: #6A6C75;
-
-  --nav-active-bg: rgba(215, 242, 244, 0.1);
-
-  --scrollbar: #1E1F24;
+  --scrollbar: var(--tertiary);
   --modal-overlay: rgba(0, 0, 0, 0.85);
-  --modal-bg: #121316;
+  --modal-bg: var(--secondaryBackground);
   --shadow-modal: 0 32px 64px rgba(0, 0, 0, 0.8);
 
-  --avatar-grad: linear-gradient(135deg, #121316, #D7F2F4);
-  --sa-grad: linear-gradient(135deg, #18191E, #D7F2F4);
+  --avatar-grad: linear-gradient(135deg, var(--secondaryBackground), var(--secondary));
+  --sa-grad: linear-gradient(135deg, var(--tertiary), var(--secondaryBackground));
 
-  --spin-track: #1E1F24;
+  --spin-track: var(--tertiary);
+}
+
+/* 2. Light Mode Palette */
+[data-theme="light"] {
+  /* Design Tokens */
+  --primary: #E7EFEE;
+  --secondary: #14B8A6;
+  --secondaryBackground: #F4F8F7;
+  --tertiary: #D8E5E3;
+  --primaryText: #0F172A;
+  --secondaryText: #64748B;
+  --accentText: #0D9488;
+
+  /* App Mappings */
+  --bg-base: var(--primary);
+  --bg-surface: var(--secondaryBackground);
+  --bg-topbar: var(--secondaryBackground);
+  --bg-input: var(--primary);
+  --bg-hover: rgba(15, 23, 42, 0.04);
+
+  --border: var(--tertiary);
+  --border-input: var(--tertiary);
+  --border-tertiary: var(--tertiary);
+
+  --text-primary: var(--primaryText);
+  --text-secondary: var(--secondaryText);
+  --text-muted: var(--secondaryText);
+  --text-accent: var(--accentText);
+
+  --accent-blue: var(--secondary);
+  --accent-blue-h: var(--accentText);
+  --accent-glow: rgba(20, 184, 166, 0.18);
+  --nav-active-bg: rgba(20, 184, 166, 0.1);
+
+  --glass-bg: rgba(244, 248, 247, 0.75);
+  --glass-border: rgba(216, 229, 227, 0.6);
+
+  --scrollbar: var(--tertiary);
+  --modal-overlay: rgba(15, 23, 42, 0.35);
+  --modal-bg: var(--secondaryBackground);
+  --shadow-modal: 0 24px 60px rgba(15, 23, 42, 0.18);
+
+  --avatar-grad: linear-gradient(135deg, var(--tertiary), var(--secondary));
+  --sa-grad: linear-gradient(135deg, var(--tertiary), var(--secondaryBackground));
+
+  --spin-track: var(--tertiary);
 }
 
 @layer base {

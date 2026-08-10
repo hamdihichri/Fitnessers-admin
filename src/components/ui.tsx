@@ -77,8 +77,8 @@ export function Avatar({ name, size = 32 }: { name?: string | null; size?: numbe
       minWidth: size, 
       fontSize: Math.max(10, size / 2.5),
       borderRadius: '50%',
-      background: 'linear-gradient(135deg, #4F6BF4, #6D5BFE)',
-      color: 'white',
+      background: 'var(--avatar-grad)',
+      color: 'var(--text-primary)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -207,8 +207,8 @@ export function Tabs({ tabs, active, onChange }: {
           {t.label}
           {t.count !== undefined && (
             <span style={{
-              background: active === t.key ? 'rgba(79,107,244,0.2)' : 'var(--border)',
-              color: active === t.key ? '#4F6BF4' : 'var(--text-secondary)',
+              background: active === t.key ? 'var(--nav-active-bg)' : 'var(--border)',
+              color: active === t.key ? 'var(--accentText)' : 'var(--text-secondary)',
               fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 6,
             }}>{t.count}</span>
           )}
