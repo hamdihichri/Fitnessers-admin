@@ -5,9 +5,9 @@ import { useState, useRef, useEffect } from 'react'
 // ── Badge ──────────────────────────────────────────────
 type BadgeVariant = 'green' | 'amber' | 'red' | 'blue' | 'purple' | 'grey'
 const BADGE_MAP: Record<string, BadgeVariant> = {
-    active: 'green', confirmed: 'green', paid: 'green', healthy: 'green', clean: 'green', assigned: 'green', success: 'green', ok: 'green',
-    pending: 'amber', requested: 'amber', locked: 'amber', warn: 'amber', paused: 'amber', started: 'blue',
-    expired: 'red', rejected: 'red', error: 'red', canceled: 'red', deleted: 'red',
+  active: 'green', confirmed: 'green', paid: 'green', healthy: 'green', clean: 'green', assigned: 'green', success: 'green', ok: 'green',
+  pending: 'amber', requested: 'amber', locked: 'amber', warn: 'amber', paused: 'amber', started: 'blue',
+  expired: 'red', rejected: 'red', error: 'red', canceled: 'red', deleted: 'red',
   corporate: 'purple', hotel_pool: 'purple',
   unassigned: 'grey', none: 'grey', gym: 'blue',
 }
@@ -71,10 +71,10 @@ export function EmptyState({ icon = '📭', message = 'No data found' }: { icon?
 export function Avatar({ name, size = 32 }: { name?: string | null; size?: number }) {
   const initials = name ? name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : '?'
   return (
-    <div className="avatar" style={{ 
-      width: size, 
-      height: size, 
-      minWidth: size, 
+    <div className="avatar" style={{
+      width: size,
+      height: size,
+      minWidth: size,
       fontSize: Math.max(10, size / 2.5),
       borderRadius: '50%',
       background: 'var(--avatar-grad)',
@@ -327,7 +327,7 @@ export function CustomSelect({ value, onChange, options, style }: {
       }
     >
       {(close) => (
-        <div style={{ minWidth: 180 }}>
+        <div style={{ minWidth: 180, maxHeight: 210, overflowY: 'auto' }}>
           {options.map(o => (
             <DropdownItem
               key={o.value}
