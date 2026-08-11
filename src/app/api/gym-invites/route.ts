@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(req: NextRequest) {
   try {
-    const { gym_name, owner_email } = await req.json()
+    const { gym_name, owner_email, owner_name, phone } = await req.json()
 
     if (!gym_name || !owner_email) {
       return NextResponse.json({ error: 'Missing gym_name or owner_email' }, { status: 400 })
@@ -19,6 +19,8 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({
           gym_name,
           owner_email,
+          owner_name: owner_name ?? null,
+          phone: phone ?? null,
           actor_user_id: '51a1ea96-73b4-4a4f-be84-3575f0670366',
         }),
       }

@@ -25,6 +25,7 @@ function humanError(code: string): string {
   if (code === 'user_already_exists') return 'An account with this email already exists. Gym owners need a separate email from any existing member account — ask them to use a different address.'
   if (code === 'invite_already_pending') return 'This owner already has a pending invite.'
   if (code === 'draft_already_exists') return 'This email is already on the invite list.'
+  if (code === 'draft_not_found') return 'This draft no longer exists.'
   return code
 }
 
@@ -38,11 +39,16 @@ export default function GymInvitesPage() {
   const [loadingDrafts, setLoadingDrafts] = useState(true)
   const [sendingDraftId, setSendingDraftId] = useState<number | null>(null)
   const [deletingDraftId, setDeletingDraftId] = useState<number | null>(null)
+  const [editingEmailId, setEditingEmailId] = useState<number | null>(null)
+  const [emailDraft, setEmailDraft] = useState('')
+  const [savingEmailId, setSavingEmailId] = useState<number | null>(null)
 
   // invite modal
   const [inviteModal, setInviteModal] = useState(false)
   const [gymName, setGymName] = useState('')
+  const [ownerName, setOwnerName] = useState('')
   const [ownerEmail, setOwnerEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [city, setCity] = useState('')
   const [sending, setSending] = useState(false)
 
@@ -92,7 +98,7 @@ export default function GymInvitesPage() {
     )
   })
 
-  const isFormValid = gymName.trim().length > 0 && EMAIL_RE.test(ownerEmail.trim())
+  const isFormValid = gymName.trim().length > 0
 
   async function addToInviteList() {
     if (!isFormValid || sending) return
@@ -100,16 +106,20 @@ export default function GymInvitesPage() {
     try {
       const { data, error } = await supabase.rpc('admin_add_gym_invite_draft', {
         p_gym_name: gymName.trim(),
-        p_owner_email: ownerEmail.trim(),
+        p_owner_email: ownerEmail.trim() || null,
         p_actor_id: ACTOR_ID,
         p_city: city || null,
+        p_owner_name: ownerName.trim() || null,
+        p_phone: phone.trim() || null,
       })
       if (error) { toast.error('RPC error: ' + error.message); return }
       if (!data.ok) { toast.error(humanError(data.error)); return }
       toast.success('Added to invite list.')
       setInviteModal(false)
       setGymName('')
+      setOwnerName('')
       setOwnerEmail('')
+      setPhone('')
       setCity('')
       loadDrafts()
     } finally {
@@ -118,13 +128,19 @@ export default function GymInvitesPage() {
   }
 
   async function sendDraft(draft: any) {
+    if (!draft.owner_email) { toast.error('Add an email before sending this invite.'); return }
     if (sendingDraftId) return
     setSendingDraftId(draft.draft_id)
     try {
       const res = await fetch('/api/gym-invites', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gym_name: draft.gym_name, owner_email: draft.owner_email }),
+        body: JSON.stringify({
+          gym_name: draft.gym_name,
+          owner_email: draft.owner_email,
+          owner_name: draft.owner_name,
+          phone: draft.phone,
+        }),
       })
       const json = await res.json()
       if (!res.ok) {
@@ -140,6 +156,26 @@ export default function GymInvitesPage() {
       toast.error('Network error: ' + err.message)
     } finally {
       setSendingDraftId(null)
+    }
+  }
+
+  async function saveDraftEmail(draft: any) {
+    if (!EMAIL_RE.test(emailDraft.trim()) || savingEmailId) return
+    setSavingEmailId(draft.draft_id)
+    try {
+      const { data, error } = await supabase.rpc('admin_update_gym_invite_draft_email', {
+        p_draft_id: draft.draft_id,
+        p_owner_email: emailDraft.trim(),
+        p_actor_id: ACTOR_ID,
+      })
+      if (error) { toast.error('RPC error: ' + error.message); return }
+      if (!data.ok) { toast.error(humanError(data.error)); return }
+      toast.success('Email saved.')
+      setEditingEmailId(null)
+      setEmailDraft('')
+      loadDrafts()
+    } finally {
+      setSavingEmailId(null)
     }
   }
 
@@ -204,7 +240,7 @@ export default function GymInvitesPage() {
         actions={
           <button
             className="btn btn-primary btn-sm"
-            onClick={() => { setInviteModal(true); setGymName(''); setOwnerEmail(''); setCity('') }}
+            onClick={() => { setInviteModal(true); setGymName(''); setOwnerName(''); setOwnerEmail(''); setPhone(''); setCity('') }}
           >
             <Mail size={14} style={{ marginRight: 6 }} /> Invite Gym Owner
           </button>
@@ -223,7 +259,9 @@ export default function GymInvitesPage() {
               <thead>
                 <tr>
                   <th>Gym Name</th>
+                  <th>Owner Name</th>
                   <th>Owner Email</th>
+                  <th>Phone</th>
                   <th>City</th>
                   <th>Added</th>
                   <th>Actions</th>
@@ -237,8 +275,57 @@ export default function GymInvitesPage() {
                         {d.gym_name ?? '—'}
                       </div>
                     </td>
-                    <td style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
-                      {d.owner_email}
+                    <td style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
+                      {d.owner_name ?? '—'}
+                    </td>
+                    <td style={{ fontSize: 12 }}>
+                      {editingEmailId === d.draft_id ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <input
+                            type="email"
+                            className="og-input"
+                            style={{ fontSize: 12, padding: '3px 8px', width: 190 }}
+                            placeholder="owner@example.com"
+                            value={emailDraft}
+                            onChange={e => setEmailDraft(e.target.value)}
+                            autoFocus
+                          />
+                          <button
+                            className="btn btn-primary btn-sm"
+                            style={{ padding: '3px 8px', fontSize: 11 }}
+                            onClick={() => saveDraftEmail(d)}
+                            disabled={!EMAIL_RE.test(emailDraft.trim()) || savingEmailId === d.draft_id}
+                          >
+                            {savingEmailId === d.draft_id ? 'Saving…' : 'Save'}
+                          </button>
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            style={{ padding: '3px 6px', fontSize: 11 }}
+                            onClick={() => { setEditingEmailId(null); setEmailDraft('') }}
+                            disabled={savingEmailId === d.draft_id}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : d.owner_email ? (
+                        <span style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+                          {d.owner_email}
+                        </span>
+                      ) : (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ color: '#64748B', fontSize: 12 }}>No email</span>
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            style={{ fontSize: 11, padding: '2px 6px' }}
+                            onClick={() => { setEditingEmailId(d.draft_id); setEmailDraft('') }}
+                          >
+                            + Add Email
+                          </button>
+                        </span>
+                      )}
+                    </td>
+                    <td style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
+                      {d.phone ?? '—'}
                     </td>
                     <td style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
                       {d.city ?? '—'}
@@ -247,7 +334,12 @@ export default function GymInvitesPage() {
                       {fmtDate(d.created_at)}
                     </td>
                     <td>
-                      <button className="btn btn-primary btn-sm" onClick={() => sendDraft(d)} disabled={sendingDraftId === d.draft_id}>
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={() => sendDraft(d)}
+                        disabled={sendingDraftId === d.draft_id || !d.owner_email}
+                        title={!d.owner_email ? 'Add an email before sending' : undefined}
+                      >
                         {sendingDraftId === d.draft_id ? 'Sending…' : 'Send Now'}
                       </button>
                       <button className="btn btn-ghost btn-sm" style={{ color: '#EF4444', marginLeft: 6 }} onClick={() => deleteDraft(d)} disabled={deletingDraftId === d.draft_id}>
@@ -343,7 +435,7 @@ export default function GymInvitesPage() {
       {/* Invite Modal */}
       <Modal
         open={inviteModal}
-        onClose={() => { if (!sending) { setInviteModal(false); setGymName(''); setOwnerEmail(''); setCity('') } }}
+        onClose={() => { if (!sending) { setInviteModal(false); setGymName(''); setOwnerName(''); setOwnerEmail(''); setPhone(''); setCity('') } }}
         title="Invite Gym Owner"
         subtitle="Save this gym owner to the invite list. No email is sent yet — you'll trigger the actual invite separately."
       >
@@ -358,12 +450,23 @@ export default function GymInvitesPage() {
             disabled={sending}
           />
         </FormGroup>
+        <FormGroup label="Owner Name">
+          <input
+            type="text"
+            className="og-input"
+            style={{ width: '100%' }}
+            placeholder="e.g. Ahmed Ben Ali"
+            value={ownerName}
+            onChange={e => setOwnerName(e.target.value)}
+            disabled={sending}
+          />
+        </FormGroup>
         <FormGroup label="Owner Email">
           <input
             type="email"
             className="og-input"
             style={{ width: '100%' }}
-            placeholder="owner@example.com"
+            placeholder="owner@example.com (optional — can be added later)"
             value={ownerEmail}
             onChange={e => setOwnerEmail(e.target.value)}
             disabled={sending}
@@ -374,6 +477,17 @@ export default function GymInvitesPage() {
             </div>
           )}
         </FormGroup>
+        <FormGroup label="Phone">
+          <input
+            type="tel"
+            className="og-input"
+            style={{ width: '100%' }}
+            placeholder="+216 XX XXX XXX"
+            value={phone}
+            onChange={e => setPhone(e.target.value)}
+            disabled={sending}
+          />
+        </FormGroup>
         <FormGroup label="City">
           <CustomSelect
             options={[{ value: '', label: 'Select city (optional)' }, ...TUNISIA_CITIES.map(c => ({ value: c, label: c }))]}
@@ -383,7 +497,7 @@ export default function GymInvitesPage() {
           />
         </FormGroup>
         <ModalActions>
-          <button className="btn btn-ghost" onClick={() => { setInviteModal(false); setGymName(''); setOwnerEmail(''); setCity('') }} disabled={sending}>
+          <button className="btn btn-ghost" onClick={() => { setInviteModal(false); setGymName(''); setOwnerName(''); setOwnerEmail(''); setPhone(''); setCity('') }} disabled={sending}>
             Cancel
           </button>
           <button
