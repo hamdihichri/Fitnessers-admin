@@ -2,7 +2,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { Card, Spinner, EmptyState, Badge, StatPill, FilterBar, Modal, FormGroup, InfoBox, ModalActions, PageHeader, CustomSelect, toast } from '@/components/ui'
 import { fmtDate, stars, exportToCSV, fmtTND } from '@/lib/utils'
-import { Search, Download, FileText, ShieldCheck, MoreVertical, AlertTriangle } from 'lucide-react'
+import { Search, Download, FileText, ShieldCheck, MoreVertical, AlertTriangle, Mail } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 
@@ -237,6 +237,9 @@ export default function GymsPage() {
         crumb="Gyms"
         actions={
           <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-secondary btn-sm" onClick={() => router.push('/gym-invites')}>
+              <Mail size={14} style={{ marginRight: 6 }} /> Invite Gym Owner
+            </button>
             <button
               className="btn btn-secondary btn-sm"
               onClick={() => router.push('/women-only-requests')}
