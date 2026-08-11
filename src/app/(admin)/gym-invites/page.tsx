@@ -2,10 +2,11 @@
 import { useEffect, useState } from 'react'
 import {
   Card, Spinner, EmptyState, Badge, FilterBar, Modal, FormGroup,
-  InfoBox, ModalActions, PageHeader, toast,
+  InfoBox, ModalActions, PageHeader, CustomSelect, toast,
 } from '@/components/ui'
 import { fmtDate } from '@/lib/utils'
 import { supabase } from '@/lib/supabase/client'
+import { TUNISIA_CITIES } from '@/lib/constants'
 import { Search, Mail, X } from 'lucide-react'
 
 const ACTOR_ID = '51a1ea96-73b4-4a4f-be84-3575f0670366'
@@ -21,8 +22,9 @@ function statusVariant(status: string): 'amber' | 'blue' | 'green' | 'grey' | 'r
 }
 
 function humanError(code: string): string {
-  if (code === 'user_already_exists') return 'An account with this email already exists.'
+  if (code === 'user_already_exists') return 'An account with this email already exists. Gym owners need a separate email from any existing member account — ask them to use a different address.'
   if (code === 'invite_already_pending') return 'This owner already has a pending invite.'
+  if (code === 'draft_already_exists') return 'This email is already on the invite list.'
   return code
 }
 
@@ -31,15 +33,26 @@ export default function GymInvitesPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
 
+  // draft state
+  const [drafts, setDrafts] = useState<any[]>([])
+  const [loadingDrafts, setLoadingDrafts] = useState(true)
+  const [sendingDraftId, setSendingDraftId] = useState<number | null>(null)
+  const [deletingDraftId, setDeletingDraftId] = useState<number | null>(null)
+
   // invite modal
   const [inviteModal, setInviteModal] = useState(false)
   const [gymName, setGymName] = useState('')
   const [ownerEmail, setOwnerEmail] = useState('')
+  const [city, setCity] = useState('')
   const [sending, setSending] = useState(false)
 
-  // cancel confirm
+  // cancel confirm (sent invites)
   const [cancelTarget, setCancelTarget] = useState<any>(null)
   const [cancelling, setCancelling] = useState(false)
+
+  // delete confirm (sent invites)
+  const [deleteTarget, setDeleteTarget] = useState<any>(null)
+  const [deleting, setDeleting] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -54,7 +67,21 @@ export default function GymInvitesPage() {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [])
+  async function loadDrafts() {
+    setLoadingDrafts(true)
+    const { data, error } = await supabase.rpc('admin_list_gym_invite_drafts', { p_actor_id: ACTOR_ID })
+    if (error) {
+      toast.error('Failed to load drafts: ' + error.message)
+    } else {
+      setDrafts(data ?? [])
+    }
+    setLoadingDrafts(false)
+  }
+
+  useEffect(() => {
+    load()
+    loadDrafts()
+  }, [])
 
   const filtered = invites.filter(inv => {
     const q = search.toLowerCase()
@@ -67,32 +94,69 @@ export default function GymInvitesPage() {
 
   const isFormValid = gymName.trim().length > 0 && EMAIL_RE.test(ownerEmail.trim())
 
-  async function sendInvite() {
+  async function addToInviteList() {
     if (!isFormValid || sending) return
     setSending(true)
+    try {
+      const { data, error } = await supabase.rpc('admin_add_gym_invite_draft', {
+        p_gym_name: gymName.trim(),
+        p_owner_email: ownerEmail.trim(),
+        p_actor_id: ACTOR_ID,
+        p_city: city || null,
+      })
+      if (error) { toast.error('RPC error: ' + error.message); return }
+      if (!data.ok) { toast.error(humanError(data.error)); return }
+      toast.success('Added to invite list.')
+      setInviteModal(false)
+      setGymName('')
+      setOwnerEmail('')
+      setCity('')
+      loadDrafts()
+    } finally {
+      setSending(false)
+    }
+  }
+
+  async function sendDraft(draft: any) {
+    if (sendingDraftId) return
+    setSendingDraftId(draft.draft_id)
     try {
       const res = await fetch('/api/gym-invites', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gym_name: gymName.trim(), owner_email: ownerEmail.trim() }),
+        body: JSON.stringify({ gym_name: draft.gym_name, owner_email: draft.owner_email }),
       })
       const json = await res.json()
-
       if (!res.ok) {
-        const errCode = json.error ?? json.message ?? 'unknown_error'
-        toast.error(humanError(errCode))
+        toast.error(humanError(json.error ?? json.message ?? 'unknown_error'))
         return
       }
-
-      toast.success('Invite sent to ' + ownerEmail.trim())
-      setInviteModal(false)
-      setGymName('')
-      setOwnerEmail('')
+      // Real invite sent — remove it from the draft list
+      await supabase.rpc('admin_delete_gym_invite_draft', { p_draft_id: draft.draft_id, p_actor_id: ACTOR_ID })
+      toast.success('Invite sent to ' + draft.owner_email)
+      loadDrafts()
       load()
     } catch (err: any) {
       toast.error('Network error: ' + err.message)
     } finally {
-      setSending(false)
+      setSendingDraftId(null)
+    }
+  }
+
+  async function deleteDraft(draft: any) {
+    if (deletingDraftId) return
+    setDeletingDraftId(draft.draft_id)
+    try {
+      const { data, error } = await supabase.rpc('admin_delete_gym_invite_draft', {
+        p_draft_id: draft.draft_id,
+        p_actor_id: ACTOR_ID,
+      })
+      if (error) { toast.error('RPC error: ' + error.message); return }
+      if (data && !data.ok) { toast.error('Error: ' + (data.error ?? 'unknown')); return }
+      toast.success('Removed from invite list.')
+      loadDrafts()
+    } finally {
+      setDeletingDraftId(null)
     }
   }
 
@@ -114,6 +178,24 @@ export default function GymInvitesPage() {
     }
   }
 
+  async function deleteInvite() {
+    if (!deleteTarget || deleting) return
+    setDeleting(true)
+    try {
+      const { data, error } = await supabase.rpc('admin_delete_gym_invite', {
+        p_invite_id: deleteTarget.invite_id,
+        p_actor_id: ACTOR_ID,
+      })
+      if (error) { toast.error('RPC error: ' + error.message); return }
+      if (data && !data.ok) { toast.error('Error: ' + (data.error ?? 'unknown')); return }
+      toast.success('Invite deleted.')
+      setDeleteTarget(null)
+      load()
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   return (
     <div className="page-enter">
       <PageHeader
@@ -122,12 +204,63 @@ export default function GymInvitesPage() {
         actions={
           <button
             className="btn btn-primary btn-sm"
-            onClick={() => { setInviteModal(true); setGymName(''); setOwnerEmail('') }}
+            onClick={() => { setInviteModal(true); setGymName(''); setOwnerEmail(''); setCity('') }}
           >
             <Mail size={14} style={{ marginRight: 6 }} /> Invite Gym Owner
           </button>
         }
       />
+
+      {/* Invite List (Not Sent) Card */}
+      <Card title="Invite List (Not Sent)">
+        {loadingDrafts ? (
+          <Spinner />
+        ) : drafts.length === 0 ? (
+          <EmptyState icon="✉️" message="No drafts yet." />
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table className="og-table">
+              <thead>
+                <tr>
+                  <th>Gym Name</th>
+                  <th>Owner Email</th>
+                  <th>City</th>
+                  <th>Added</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {drafts.map((d: any) => (
+                  <tr key={d.draft_id}>
+                    <td>
+                      <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {d.gym_name ?? '—'}
+                      </div>
+                    </td>
+                    <td style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+                      {d.owner_email}
+                    </td>
+                    <td style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
+                      {d.city ?? '—'}
+                    </td>
+                    <td style={{ fontSize: 11, color: '#64748B', fontFamily: 'var(--font-mono)' }}>
+                      {fmtDate(d.created_at)}
+                    </td>
+                    <td>
+                      <button className="btn btn-primary btn-sm" onClick={() => sendDraft(d)} disabled={sendingDraftId === d.draft_id}>
+                        {sendingDraftId === d.draft_id ? 'Sending…' : 'Send Now'}
+                      </button>
+                      <button className="btn btn-ghost btn-sm" style={{ color: '#EF4444', marginLeft: 6 }} onClick={() => deleteDraft(d)} disabled={deletingDraftId === d.draft_id}>
+                        <X size={12} style={{ marginRight: 4 }} /> Remove
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
 
       <FilterBar>
         <div style={{ position: 'relative', flex: 1, maxWidth: 320 }}>
@@ -135,14 +268,15 @@ export default function GymInvitesPage() {
           <input
             className="og-input"
             style={{ paddingLeft: 30, width: '100%' }}
-            placeholder="Search by gym name or email…"
+            placeholder="Search sent invites by gym name or email…"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
         </div>
       </FilterBar>
 
-      <Card>
+      {/* Sent Invites Card */}
+      <Card title="Sent Invites">
         {loading ? (
           <Spinner />
         ) : filtered.length === 0 ? (
@@ -189,6 +323,14 @@ export default function GymInvitesPage() {
                           <X size={12} style={{ marginRight: 4 }} /> Cancel
                         </button>
                       )}
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        style={{ color: '#EF4444', marginLeft: 6 }}
+                        onClick={() => setDeleteTarget(inv)}
+                        title="Permanently delete this invite record"
+                      >
+                        <X size={12} style={{ marginRight: 4 }} /> Delete
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -201,9 +343,9 @@ export default function GymInvitesPage() {
       {/* Invite Modal */}
       <Modal
         open={inviteModal}
-        onClose={() => { if (!sending) { setInviteModal(false) } }}
+        onClose={() => { if (!sending) { setInviteModal(false); setGymName(''); setOwnerEmail(''); setCity('') } }}
         title="Invite Gym Owner"
-        subtitle="Send an email invite to a new gym owner. They will set their password on the gym dashboard."
+        subtitle="Save this gym owner to the invite list. No email is sent yet — you'll trigger the actual invite separately."
       >
         <FormGroup label="Gym Name">
           <input
@@ -232,16 +374,24 @@ export default function GymInvitesPage() {
             </div>
           )}
         </FormGroup>
+        <FormGroup label="City">
+          <CustomSelect
+            options={[{ value: '', label: 'Select city (optional)' }, ...TUNISIA_CITIES.map(c => ({ value: c, label: c }))]}
+            value={city}
+            onChange={setCity}
+            style={{ width: '100%' }}
+          />
+        </FormGroup>
         <ModalActions>
-          <button className="btn btn-ghost" onClick={() => setInviteModal(false)} disabled={sending}>
+          <button className="btn btn-ghost" onClick={() => { setInviteModal(false); setGymName(''); setOwnerEmail(''); setCity('') }} disabled={sending}>
             Cancel
           </button>
           <button
             className="btn btn-primary"
-            onClick={sendInvite}
+            onClick={addToInviteList}
             disabled={!isFormValid || sending}
           >
-            {sending ? 'Sending…' : 'Send Invite'}
+            {sending ? 'Saving…' : 'Add to Invite List'}
           </button>
         </ModalActions>
       </Modal>
@@ -265,6 +415,31 @@ export default function GymInvitesPage() {
               </button>
               <button className="btn btn-danger" onClick={cancelInvite} disabled={cancelling}>
                 {cancelling ? 'Cancelling…' : 'Yes, Cancel Invite'}
+              </button>
+            </ModalActions>
+          </>
+        )}
+      </Modal>
+
+      {/* Delete Confirm Modal */}
+      <Modal
+        open={!!deleteTarget}
+        onClose={() => { if (!deleting) setDeleteTarget(null) }}
+        title="Delete Invite"
+        subtitle="This permanently removes the invite record. This cannot be undone."
+      >
+        {deleteTarget && (
+          <>
+            <InfoBox>
+              <div>Gym: <strong style={{ color: '#E4EBF5' }}>{deleteTarget.gym_name}</strong></div>
+              <div>Owner Email: <span style={{ fontFamily: 'var(--font-mono)', color: '#4F6BF4' }}>{deleteTarget.owner_email}</span></div>
+            </InfoBox>
+            <ModalActions>
+              <button className="btn btn-ghost" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+                Cancel
+              </button>
+              <button className="btn btn-danger" onClick={deleteInvite} disabled={deleting}>
+                {deleting ? 'Deleting…' : 'Yes, Delete Invite'}
               </button>
             </ModalActions>
           </>
