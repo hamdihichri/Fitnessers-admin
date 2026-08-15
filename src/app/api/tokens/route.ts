@@ -1,14 +1,15 @@
-import { createAdminClient } from '@/lib/supabase'
+import { createAdminClient, createServerClient } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(req: NextRequest) {
-  const sb = createAdminClient()
+  const sb = createServerClient(req)
+  const sbAdmin = createAdminClient()
   const direction = req.nextUrl.searchParams.get('direction')
   const reason = req.nextUrl.searchParams.get('reason')
   const today = new Date().toISOString().split('T')[0]
   const in7 = new Date(Date.now() + 7 * 86400000).toISOString()
 
-  let query = sb.from('token_ledger')
+  let query = sbAdmin.from('token_ledger')
     .select('ledger_id,user_id,direction,amount,reason,created_at,expires_at,gym_id')
     .order('created_at', { ascending: false }).limit(150)
   if (direction) query = query.eq('direction', direction)
@@ -16,9 +17,9 @@ export async function GET(req: NextRequest) {
 
   const [ledger, todayC, todayD, expiring, economy] = await Promise.all([
     query,
-    sb.from('token_ledger').select('amount').eq('direction','credit').gte('created_at', today+'T00:00:00'),
-    sb.from('token_ledger').select('amount').eq('direction','debit').gte('created_at', today+'T00:00:00'),
-    sb.from('token_ledger').select('amount').eq('direction','credit').lte('expires_at', in7).gt('expires_at', new Date().toISOString()),
+    sbAdmin.from('token_ledger').select('amount').eq('direction','credit').gte('created_at', today+'T00:00:00'),
+    sbAdmin.from('token_ledger').select('amount').eq('direction','debit').gte('created_at', today+'T00:00:00'),
+    sbAdmin.from('token_ledger').select('amount').eq('direction','credit').lte('expires_at', in7).gt('expires_at', new Date().toISOString()),
     sb.rpc('get_admin_token_overview')
   ])
 
@@ -29,10 +30,10 @@ export async function GET(req: NextRequest) {
 
   const [{ data: profiles }, { data: gyms }] = await Promise.all([
     userIds.length
-      ? sb.from('profiles').select('user_id,full_name,email').in('user_id', userIds)
+      ? sbAdmin.from('profiles').select('user_id,full_name,email').in('user_id', userIds)
       : Promise.resolve({ data: [] }),
     gymIds.length
-      ? sb.from('gyms').select('gym_id,name').in('gym_id', gymIds)
+      ? sbAdmin.from('gyms').select('gym_id,name').in('gym_id', gymIds)
       : Promise.resolve({ data: [] }),
   ])
 
@@ -60,7 +61,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const sb = createAdminClient()
+  const sb = createServerClient(req)
   const { user_id, direction, amount, reason } = await req.json()
   const { error } = await sb.from('token_ledger').insert({ user_id, direction, amount, reason })
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })

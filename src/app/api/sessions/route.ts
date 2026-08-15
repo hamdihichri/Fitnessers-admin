@@ -41,24 +41,47 @@ export async function GET(req: NextRequest) {
         }
 
         // 3. Fetch today's bookings and check-ins per SESSION (not per gym)
-        const [bookingsRes, checkinsRes] = await Promise.all([
+        const [bookingsRes, checkinsRaw] = await Promise.all([
             sb.from('gym_session_bookings')
                 .select('weekly_session_id')
                 .eq('session_date', today)
-                .neq('status', 'cancelled'),
+                .in('status', ['booked', 'late']),
             sb.from('gym_checkins')
-                .select('weekly_session_id')
+                .select('booking_id')
                 .eq('session_date', today)
         ])
 
+        if (bookingsRes.error) throw bookingsRes.error
+        if (checkinsRaw.error) throw checkinsRaw.error
+
         const bookingMap: Record<string, number> = {}
-        bookingsRes.data?.forEach(b => {
+        bookingsRes.data?.forEach((b: any) => {
             bookingMap[b.weekly_session_id] = (bookingMap[b.weekly_session_id] || 0) + 1
         })
 
+        const checkinBookingIds = [...new Set(
+            (checkinsRaw.data ?? [])
+                .map((c: any) => c.booking_id)
+                .filter((id: any) => id != null)
+        )]
+
+        let checkinBookingSessionMap: Record<string, string> = {}
+        if (checkinBookingIds.length > 0) {
+            const bookingsForCheckins = await sb.from('gym_session_bookings')
+                .select('booking_id, weekly_session_id')
+                .in('booking_id', checkinBookingIds)
+
+            if (bookingsForCheckins.error) throw bookingsForCheckins.error
+
+            bookingsForCheckins.data?.forEach((b: any) => {
+                checkinBookingSessionMap[b.booking_id] = b.weekly_session_id
+            })
+        }
+
         const checkinMap: Record<string, number> = {}
-        checkinsRes.data?.forEach(c => {
-            checkinMap[c.weekly_session_id] = (checkinMap[c.weekly_session_id] || 0) + 1
+        ;(checkinsRaw.data ?? []).forEach((c: any) => {
+            const wsid = checkinBookingSessionMap[c.booking_id]
+            if (wsid) checkinMap[wsid] = (checkinMap[wsid] || 0) + 1
         })
 
         const gymMap: Record<number, any> = {}
