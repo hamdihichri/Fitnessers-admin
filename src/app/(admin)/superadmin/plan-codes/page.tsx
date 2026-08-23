@@ -588,9 +588,11 @@ export default function PlanCodesPage() {
     }
 
     try {
-      const [proTemplateImg, basicTemplateImg, backTemplateImg] = await Promise.all([
-        loadImage('/assets/voucher-card-template.png'),
-        loadImage('/assets/Votcher-BASIC.png').catch(() => loadImage('/assets/voucher-card-template.png')),
+      const [proMoisImg, basicMoisImg, proAnImg, basicAnImg, backTemplateImg] = await Promise.all([
+        loadImage('/assets/pro-mois-v3.png').catch(() => loadImage('/assets/pro-v2.png')),
+        loadImage('/assets/basic-mois-v3.png').catch(() => loadImage('/assets/basic-v2.png')),
+        loadImage('/assets/pro-an.png').catch(() => loadImage('/assets/pro-v2.png')),
+        loadImage('/assets/basic-an.png').catch(() => loadImage('/assets/basic-v2.png')),
         loadImage('/assets/Votcher-BACK.png').catch(() => loadImage('/assets/voucher-card-template.png'))
       ])
 
@@ -603,8 +605,8 @@ export default function PlanCodesPage() {
       const cardW = PAGE_W / COLS
       const cardH = PAGE_H / ROWS
 
-      // Measured on the source template: gray code box + bottom-left ID spot
-      const BOX = { l: 0.054965, t: 0.439750, w: 0.451241, h: 0.120501 }
+      // Measured on the source template: white code box under "Code D'activation" + bottom-left ID spot
+      const BOX = { l: 0.054965, t: 0.491393, w: 0.451241, h: 0.120501 }
       const ID = { x: 0.054965, y: 0.907667 }
 
       const totalPages = Math.ceil(selected.length / PER_PAGE)
@@ -621,7 +623,7 @@ export default function PlanCodesPage() {
           const x = col * cardW
           const y = row * cardH
 
-          // Determine plan name to choose right voucher card template
+          // Determine plan name and billing period to choose right voucher card template
           const pName = (
             c.plans?.name ||
             c.plan_name ||
@@ -630,11 +632,27 @@ export default function PlanCodesPage() {
             ''
           ).toLowerCase()
 
-          const templateImg = pName.includes('basic') ? basicTemplateImg : proTemplateImg
+          const period = (
+            c.plans?.billing_period ||
+            (c.plan_id ? plans.find(p => p.plan_id === c.plan_id)?.billing_period : '') ||
+            selectedPlan?.billing_period ||
+            ''
+          ).toLowerCase()
+
+          const durationDays = c.duration_days ?? 0
+          const isAnnual = period === 'year' || period === 'annually' || durationDays >= 300 || pName.includes('annual') || pName.includes('an')
+          const isBasic = pName.includes('basic')
+
+          let templateImg: HTMLImageElement
+          if (isBasic) {
+            templateImg = isAnnual ? basicAnImg : basicMoisImg
+          } else {
+            templateImg = isAnnual ? proAnImg : proMoisImg
+          }
 
           doc.addImage(templateImg, 'PNG', x, y, cardW, cardH)
 
-          // Code, centered in the gray box — no charSpace (it was the overflow bug)
+          // Code, centered horizontally & vertically in the white container box under "Code D'activation"
           const boxX = x + BOX.l * cardW
           const boxY = y + BOX.t * cardH
           const boxW = BOX.w * cardW
@@ -648,7 +666,7 @@ export default function PlanCodesPage() {
             doc.setFontSize(fontSize)
           }
           doc.setTextColor(31, 41, 55)
-          doc.text(c.code, boxX + boxW / 2, boxY + boxH / 2 + boxH * 0.18, { align: 'center' })
+          doc.text(c.code, boxX + boxW / 2, boxY + boxH / 2, { align: 'center', baseline: 'middle' })
 
           // Card ID, bottom-left
           doc.setFont('helvetica', 'normal')
