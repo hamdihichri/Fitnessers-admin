@@ -1776,6 +1776,7 @@ export default function PlanCodesPage() {
                   ? 'Unknown Date'
                   : new Date(batch.timestamp).toLocaleString()
                 
+                const usedCount = batch.codes.filter(c => c.is_used).length
                 const planBreakdown: Record<string, number> = {}
                 batch.codes.forEach(c => {
                   const planName = c.plans?.name || 'Unknown Plan'
@@ -1793,6 +1794,7 @@ export default function PlanCodesPage() {
                             {formattedDate}
                           </span>
                           <Badge label={`${batch.codes.length} codes`} />
+                          <Badge label={`${usedCount} used`} variant={usedCount > 0 ? 'green' : 'grey'} />
                         </div>
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                           {Object.entries(planBreakdown).map(([name, count]) => (
