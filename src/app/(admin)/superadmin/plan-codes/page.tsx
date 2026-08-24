@@ -294,7 +294,46 @@ export default function PlanCodesPage() {
   const [codes, setCodes] = useState<RedemptionCode[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [loadingCodes, setLoadingCodes] = useState(true)
-  const [activeTab, setActiveTab] = useState<'manage' | 'sellers' | 'export'>('manage')
+  const [activeTab, setActiveTab] = useState<'manage' | 'sellers' | 'export' | 'history'>('manage')
+  const [distributedCodes, setDistributedCodes] = useState<RedemptionCode[]>([])
+  const [loadingHistory, setLoadingHistory] = useState(false)
+  const [expandedBatches, setExpandedBatches] = useState<Record<string, boolean>>({})
+
+  async function loadDistributionHistory() {
+    setLoadingHistory(true)
+    const { data, error } = await supabase
+      .from('redemption_codes')
+      .select(`
+        code_id, code, plan_id, duration_days,
+        is_used, is_disabled, is_distributed, distributed_at,
+        seller_name, seller_phone, created_at, expires_at, company_id,
+        plans(name, billing_period, price_cents),
+        companies(name, contact_email)
+      `)
+      .eq('is_distributed', true)
+      .order('distributed_at', { ascending: false })
+    if (error) { toast.error(error.message) } 
+    else if (data) { setDistributedCodes(data as any) }
+    setLoadingHistory(false)
+  }
+
+  useEffect(() => {
+    if (activeTab === 'history') {
+      loadDistributionHistory()
+    }
+  }, [activeTab])
+
+  const distributionBatches = useMemo(() => {
+    const groups: Record<string, RedemptionCode[]> = {}
+    distributedCodes.forEach(c => {
+      const key = c.distributed_at || 'unknown'
+      if (!groups[key]) groups[key] = []
+      groups[key].push(c)
+    })
+    return Object.entries(groups)
+      .map(([timestamp, batchCodes]) => ({ timestamp, codes: batchCodes }))
+      .sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1))
+  }, [distributedCodes])
   const [exportSearch, setExportSearch] = useState('')
   const [selectedSeller, setSelectedSeller] = useState<{ name: string, phone: string } | null>(null)
   const [sellerCodes, setSellerCodes] = useState<RedemptionCode[]>([])
@@ -1078,7 +1117,8 @@ export default function PlanCodesPage() {
         tabs={[
           { key: 'manage', label: 'Manage Codes' },
           { key: 'sellers', label: 'Sellers Analytics' },
-          { key: 'export', label: 'Export PDF' }
+          { key: 'export', label: 'Export PDF' },
+          { key: 'history', label: 'Distribution History' }
         ]}
       />
 
@@ -1626,7 +1666,7 @@ export default function PlanCodesPage() {
             </table>
           </div>
         </Card>
-      ) : (
+      ) : activeTab === 'export' ? (
         <div className="flex flex-col gap-6">
           <Card>
             <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 16 }}>Seller Preview & Export</div>
@@ -1720,7 +1760,98 @@ export default function PlanCodesPage() {
             )}
           </Card>
         </div>
-      )}
+      ) : activeTab === 'history' ? (
+        <Card>
+          <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 20 }}>
+            Distribution History
+          </div>
+          {loadingHistory ? (
+            <div style={{ padding: 24 }}><Spinner /></div>
+          ) : distributionBatches.length === 0 ? (
+            <EmptyState message="No distribution history yet" />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {distributionBatches.map(batch => {
+                const formattedDate = batch.timestamp === 'unknown'
+                  ? 'Unknown Date'
+                  : new Date(batch.timestamp).toLocaleString()
+                
+                const planBreakdown: Record<string, number> = {}
+                batch.codes.forEach(c => {
+                  const planName = c.plans?.name || 'Unknown Plan'
+                  planBreakdown[planName] = (planBreakdown[planName] || 0) + 1
+                })
+
+                const isExpanded = !!expandedBatches[batch.timestamp]
+
+                return (
+                  <div key={batch.timestamp} style={{ background: 'var(--bg-base)', borderRadius: 10, padding: 18, border: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                          <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)' }}>
+                            {formattedDate}
+                          </span>
+                          <Badge label={`${batch.codes.length} codes`} />
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                          {Object.entries(planBreakdown).map(([name, count]) => (
+                            <span key={name} style={{ fontSize: 11, color: 'var(--text-secondary)', background: 'var(--bg-input)', padding: '3px 8px', borderRadius: 6, border: '1px solid var(--border)' }}>
+                              {name}: <strong>{count}</strong>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => setExpandedBatches(prev => ({ ...prev, [batch.timestamp]: !prev[batch.timestamp] }))}
+                        >
+                          {isExpanded ? 'Hide Codes' : 'Show Codes'}
+                        </button>
+                        <button
+                          className="btn btn-primary btn-sm"
+                          onClick={() => generateVoucherPDF(batch.codes)}
+                          style={{ gap: 8 }}
+                        >
+                          <Ticket size={14} /> Regenerate Vouchers
+                        </button>
+                      </div>
+                    </div>
+
+                    {isExpanded && (
+                      <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {batch.codes.map(c => (
+                            <div 
+                              key={c.code_id} 
+                              style={{ 
+                                fontSize: 11, 
+                                fontFamily: 'monospace', 
+                                padding: '4px 8px', 
+                                background: c.is_used ? 'var(--bg-input)' : 'rgba(37, 99, 235, 0.1)',
+                                color: c.is_used ? 'var(--text-muted)' : 'rgb(37, 99, 235)',
+                                borderRadius: 4,
+                                border: '1px solid',
+                                borderColor: c.is_used ? 'transparent' : 'rgba(37, 99, 235, 0.2)',
+                                textDecoration: c.is_used ? 'line-through' : 'none'
+                              }}
+                              title={`${c.plans?.name || 'Plan'} - ${c.is_used ? 'Used' : 'Unused'}`}
+                            >
+                              {c.code}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </Card>
+      ) : null}
 
       {/* Bulk Assign Modal */}
       <Modal 
