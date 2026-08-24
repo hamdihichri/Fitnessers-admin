@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import {
@@ -8,7 +8,7 @@ import {
   Tabs, FilterBar, Modal, FormGroup, ModalActions,
   InfoBox, PageHeader, toast
 } from '@/components/ui'
-import { Copy, Download, RefreshCw, Trash2, Tag, CheckSquare, Settings, FileText, Search, Printer, Building, Ticket } from 'lucide-react'
+import { Copy, Download, RefreshCw, Trash2, Tag, CheckSquare, Settings, FileText, Search, Printer, Building, Ticket, SlidersHorizontal, X, ChevronDown, Check } from 'lucide-react'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
@@ -22,6 +22,8 @@ type RedemptionCode = {
   is_disabled: boolean;
   used_at: string | null;
   disabled_at: string | null;
+  is_distributed: boolean;
+  distributed_at: string | null;
   seller_name: string | null;
   seller_phone: string | null;
   notes: string | null;
@@ -72,6 +74,37 @@ function StatusBadge({ status }: { status: ReturnType<typeof getCodeStatus> }) {
   )
 }
 
+function DistributedBadge({
+  isDistributed,
+  distributedAt,
+  onClick
+}: {
+  isDistributed: boolean;
+  distributedAt: string | null;
+  onClick: () => void;
+}) {
+  return (
+    <span
+      onClick={onClick}
+      title={isDistributed && distributedAt ? `Distributed ${timeAgo(distributedAt)} (${new Date(distributedAt).toLocaleString()})` : 'Click to toggle distribution status'}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        padding: '3px 9px',
+        borderRadius: 20,
+        fontSize: 11,
+        fontWeight: 700,
+        cursor: 'pointer',
+        userSelect: 'none',
+        backgroundColor: isDistributed ? '#DCFCE7' : '#F1F5F9',
+        color: isDistributed ? '#16A34A' : '#64748B'
+      }}
+    >
+      {isDistributed ? 'Distributed' : 'Not sent'}
+    </span>
+  )
+}
+
 function timeAgo(dateString: string | null) {
   if (!dateString) return ''
   const ms = Date.now() - new Date(dateString).getTime()
@@ -80,6 +113,174 @@ function timeAgo(dateString: string | null) {
   if (days === 1) return 'Yesterday'
   if (days < 30) return `${days} days ago`
   return new Date(dateString).toLocaleDateString()
+}
+
+// --- Custom Filter Select Component ---
+function CustomFilterSelect<T extends string | number>({
+  icon: Icon,
+  label,
+  value,
+  options,
+  onChange,
+  minWidth = 140
+}: {
+  icon: any
+  label: string
+  value: T
+  options: { label: string; value: T }[]
+  onChange: (val: T) => void
+  minWidth?: number
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  const isFiltered = value !== 'All' && value !== ''
+  const selectedOption = options.find(o => String(o.value) === String(value))
+  const displayLabel = isFiltered ? (selectedOption ? selectedOption.label : label) : label
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative', display: 'inline-block' }}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        onMouseEnter={e => {
+          if (!isOpen) {
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'
+            if (!isFiltered) e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.18)'
+          }
+        }}
+        onMouseLeave={e => {
+          if (!isOpen) {
+            e.currentTarget.style.background = 'var(--bg-input)'
+            e.currentTarget.style.borderColor = isFiltered ? 'transparent' : 'var(--border)'
+          }
+        }}
+        onFocus={e => {
+          if (!isFiltered) {
+            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)'
+          }
+        }}
+        onBlur={e => {
+          if (!isFiltered) {
+            e.currentTarget.style.borderColor = 'var(--border)'
+          }
+        }}
+        style={{
+          height: 36,
+          paddingLeft: 34,
+          paddingRight: 30,
+          minWidth: minWidth,
+          fontSize: 12,
+          fontWeight: 600,
+          borderRadius: 10,
+          cursor: 'pointer',
+          background: isOpen ? 'rgba(255, 255, 255, 0.08)' : 'var(--bg-input)',
+          color: isFiltered ? 'var(--accent-blue)' : (isOpen ? 'var(--text-primary)' : 'var(--text-secondary)'),
+          border: isFiltered ? '1px solid transparent' : (isOpen ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid var(--border)'),
+          transition: 'all 0.2s ease',
+          boxShadow: 'none',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 8,
+          whiteSpace: 'nowrap',
+          outline: 'none',
+          position: 'relative'
+        }}
+      >
+        <Icon size={13} style={{ position: 'absolute', left: 12, color: isFiltered ? 'var(--accent-blue)' : 'var(--text-muted)', pointerEvents: 'none' }} />
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{displayLabel}</span>
+        <ChevronDown 
+          size={14} 
+          style={{ 
+            position: 'absolute', 
+            right: 10, 
+            color: isFiltered ? 'var(--accent-blue)' : 'var(--text-muted)',
+            transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: 'transform 0.2s ease',
+            pointerEvents: 'none'
+          }} 
+        />
+      </button>
+
+      {isOpen && (
+        <div style={{
+          position: 'absolute',
+          top: 'calc(100% + 6px)',
+          left: 0,
+          minWidth: Math.max(minWidth, 185),
+          maxHeight: 280,
+          overflowY: 'auto',
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 12,
+          boxShadow: '0 16px 40px rgba(0,0,0,0.5)',
+          zIndex: 1000,
+          padding: '6px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2
+        }}>
+          {options.map(opt => {
+            const isSelected = String(opt.value) === String(value)
+            return (
+              <button
+                key={String(opt.value)}
+                type="button"
+                onClick={() => {
+                  onChange(opt.value)
+                  setIsOpen(false)
+                }}
+                onMouseEnter={e => {
+                  if (!isSelected) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'
+                }}
+                onMouseLeave={e => {
+                  if (!isSelected) e.currentTarget.style.background = 'transparent'
+                }}
+                onFocus={e => {
+                  if (!isSelected) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'
+                }}
+                onBlur={e => {
+                  if (!isSelected) e.currentTarget.style.background = 'transparent'
+                }}
+                style={{
+                  width: '100%',
+                  textAlign: 'left',
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: isSelected ? 700 : 500,
+                  background: isSelected ? 'var(--nav-active-bg)' : 'transparent',
+                  color: isSelected ? 'var(--accent-blue)' : 'var(--text-primary)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 10,
+                  transition: 'all 0.15s ease',
+                  outline: 'none'
+                }}
+              >
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opt.label}</span>
+                {isSelected && <Check size={13} style={{ color: 'var(--accent-blue)', flexShrink: 0 }} />}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function PlanCodesPage() {
@@ -129,9 +330,10 @@ export default function PlanCodesPage() {
   // Table Filters State
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState('All')
+  const [filterDistributed, setFilterDistributed] = useState<'All' | 'Distributed' | 'Not Distributed'>('All')
   const [filterPlan, setFilterPlan] = useState('All')
   const [offset, setOffset] = useState(0)
-  const rowsPerPage = 50
+  const rowsPerPage = 100
 
   // Auth Hook
   useEffect(() => {
@@ -234,6 +436,7 @@ export default function PlanCodesPage() {
       .select(`
         code_id, code, plan_id, duration_days,
         is_used, is_disabled, used_at, disabled_at,
+        is_distributed, distributed_at,
         seller_name, seller_phone, notes,
         created_at, expires_at, company_id,
         plans(name, billing_period, price_cents),
@@ -384,6 +587,7 @@ export default function PlanCodesPage() {
         .select(`
           code_id, code, plan_id, duration_days,
           is_used, is_disabled, used_at, disabled_at,
+          is_distributed, distributed_at,
           seller_name, seller_phone, notes,
           created_at, expires_at,
           plans(name, billing_period, price_cents)
@@ -569,9 +773,10 @@ export default function PlanCodesPage() {
   }
 
   async function generateVoucherPDF(codesToExport?: { code: string; code_id: number }[] | any) {
-    const selected = Array.isArray(codesToExport)
-      ? codesToExport
-      : codes.filter(c => selectedCodeIds.has(c.code_id))
+    const isBulkToolbarExport = !Array.isArray(codesToExport)
+    const selected = isBulkToolbarExport
+      ? codes.filter(c => selectedCodeIds.has(c.code_id))
+      : codesToExport
 
     if (selected.length === 0) {
       toast.error("Select at least one code first")
@@ -587,16 +792,48 @@ export default function PlanCodesPage() {
       })
     }
 
+    const loadFontBase64 = async (src: string): Promise<string | null> => {
+      try {
+        const res = await fetch(src)
+        const blob = await res.blob()
+        return new Promise((resolve) => {
+          const reader = new FileReader()
+          reader.onloadend = () => {
+            const dataUrl = reader.result as string
+            const base64 = dataUrl.split(',')[1]
+            resolve(base64)
+          }
+          reader.onerror = () => resolve(null)
+          reader.readAsDataURL(blob)
+        })
+      } catch {
+        return null
+      }
+    }
+
     try {
-      const [proMoisImg, basicMoisImg, proAnImg, basicAnImg, backTemplateImg] = await Promise.all([
+      const [proMoisImg, basicMoisImg, proAnImg, basicAnImg, backTemplateImg, monoFontBase64] = await Promise.all([
         loadImage('/assets/pro-mois-v3.png').catch(() => loadImage('/assets/pro-v2.png')),
         loadImage('/assets/basic-mois-v3.png').catch(() => loadImage('/assets/basic-v2.png')),
         loadImage('/assets/pro-an.png').catch(() => loadImage('/assets/pro-v2.png')),
         loadImage('/assets/basic-an.png').catch(() => loadImage('/assets/basic-v2.png')),
-        loadImage('/assets/Votcher-BACK.png').catch(() => loadImage('/assets/voucher-card-template.png'))
+        loadImage('/assets/Votcher-BACK.png').catch(() => loadImage('/assets/voucher-card-template.png')),
+        loadFontBase64('/assets/RobotoMono-Bold.ttf')
       ])
 
       const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+
+      let isMonoLoaded = false
+      if (monoFontBase64) {
+        try {
+          doc.addFileToVFS('RobotoMono-Bold.ttf', monoFontBase64)
+          doc.addFont('RobotoMono-Bold.ttf', 'RobotoMono', 'bold')
+          isMonoLoaded = true
+        } catch (e) {
+          console.warn('Custom font registration failed', e)
+        }
+      }
+
       const PAGE_W = 210, PAGE_H = 297
       const COLS = 2, ROWS = 5
       const PER_PAGE = COLS * ROWS  // 10 cards per page
@@ -608,6 +845,32 @@ export default function PlanCodesPage() {
       // Measured on the source template: white code box under "Code D'activation" + bottom-left ID spot
       const BOX = { l: 0.054965, t: 0.491393, w: 0.451241, h: 0.120501 }
       const ID = { x: 0.054965, y: 0.907667 }
+
+      // Draw subtle inner cut lines between cards (omitting outer page borders)
+      const drawInnerCutLines = () => {
+        doc.setDrawColor(85, 85, 85) // Subtle neutral grey (not white)
+        doc.setLineWidth(0.15) // Subtle thin line
+        doc.setLineDashPattern([1.5, 1.5], 0) // Fine dash pattern
+
+        // Vertical inner dividing lines (between columns 1..COLS-1)
+        for (let col = 1; col < COLS; col++) {
+          const x = col * cardW
+          doc.line(x, 0, x, PAGE_H)
+        }
+
+        // Horizontal inner dividing lines (between rows 1..ROWS-1)
+        for (let row = 1; row < ROWS; row++) {
+          const y = row * cardH
+          doc.line(0, y, PAGE_W, y)
+        }
+
+        doc.setLineDashPattern([], 0) // Reset line dash
+
+        // Cover any bottom sub-pixel gap with a solid dark line matching the voucher background
+        doc.setDrawColor(15, 23, 42)
+        doc.setLineWidth(0.5)
+        doc.line(0, PAGE_H - 0.25, PAGE_W, PAGE_H - 0.25)
+      }
 
       const totalPages = Math.ceil(selected.length / PER_PAGE)
 
@@ -650,7 +913,7 @@ export default function PlanCodesPage() {
             templateImg = isAnnual ? proAnImg : proMoisImg
           }
 
-          doc.addImage(templateImg, 'PNG', x, y, cardW, cardH)
+          doc.addImage(templateImg, 'PNG', x, y, cardW, cardH + 0.4)
 
           // Code, centered horizontally & vertically in the white container box under "Code D'activation"
           const boxX = x + BOX.l * cardW
@@ -658,29 +921,32 @@ export default function PlanCodesPage() {
           const boxW = BOX.w * cardW
           const boxH = BOX.h * cardH
 
-          let fontSize = 14
-          doc.setFont('courier', 'bold')
+          let fontSize = 11
+          if (isMonoLoaded) {
+            doc.setFont('RobotoMono', 'bold')
+            doc.setCharSpace(0.2)
+          } else {
+            doc.setFont('helvetica', 'bold')
+            doc.setCharSpace(0.3)
+          }
           doc.setFontSize(fontSize)
-          while (doc.getTextWidth(c.code) > boxW - 4 && fontSize > 6) {
+          while (doc.getTextWidth(c.code) > boxW - 8 && fontSize > 6) {
             fontSize -= 0.5
             doc.setFontSize(fontSize)
           }
           doc.setTextColor(31, 41, 55)
-          doc.text(c.code, boxX + boxW / 2, boxY + boxH / 2, { align: 'center', baseline: 'middle' })
+          doc.text(c.code, boxX + boxW / 2 - 0.7, boxY + boxH / 2 + 0.4, { align: 'center', baseline: 'middle' })
+          doc.setCharSpace(0)
 
           // Card ID, bottom-left
           doc.setFont('helvetica', 'normal')
           doc.setFontSize(8.5)
           doc.setTextColor(148, 163, 184)
           doc.text(`N° ${String(c.code_id).padStart(4, '0')}`, x + ID.x * cardW, y + ID.y * cardH)
-
-          // cut guide — highly dashed cut line
-          doc.setDrawColor(100, 100, 100)
-          doc.setLineWidth(0.35)
-          doc.setLineDashPattern([1.5, 1.5], 0)
-          doc.rect(x, y, cardW, cardH)
-          doc.setLineDashPattern([], 0)
         })
+
+        // Draw subtle inner cut lines (no full page border lines)
+        drawInnerCutLines()
       }
 
       // --- ONE SINGLE BACK PAGE at the end (always 10 slots = 1 page) ---
@@ -694,21 +960,45 @@ export default function PlanCodesPage() {
         const x = col * cardW
         const y = row * cardH
 
-        doc.addImage(backTemplateImg, 'PNG', x, y, cardW, cardH)
-
-        // cut guide — highly dashed cut line for back cards
-        doc.setDrawColor(60, 60, 60)
-        doc.setLineWidth(0.4)
-        doc.setLineDashPattern([1.5, 1.5], 0)
-        doc.rect(x, y, cardW, cardH)
-        doc.setLineDashPattern([], 0)
+        doc.addImage(backTemplateImg, 'PNG', x, y, cardW, cardH + 0.4)
       }
+
+      // Draw subtle inner cut lines for back page
+      drawInnerCutLines()
 
       doc.save(`Fitnessers_Vouchers_${new Date().toISOString().slice(0,10)}.pdf`)
       toast.success(`${selected.length} voucher(s) exported with back cards`)
+
+      if (isBulkToolbarExport) {
+        const exportedIds = selected.map((c: any) => c.code_id)
+        markCodesDistributed(exportedIds, true)
+      }
     } catch (err: any) {
       console.error(err)
       toast.error("Voucher template load failed")
+    }
+  }
+
+  async function markCodesDistributed(codeIds: number[], distributed: boolean) {
+    if (codeIds.length === 0) return
+    try {
+      const { data, error } = await supabase.rpc('superadmin_mark_codes_distributed', {
+        p_code_ids: codeIds,
+        p_distributed: distributed
+      })
+
+      if (error) throw error
+
+      const count = typeof data === 'number' ? data : codeIds.length
+      toast.success(`${count} code(s) marked as ${distributed ? 'distributed' : 'undistributed'}`)
+
+      const isBulkSelectionAction = codeIds.length > 1 || (codeIds.length === 1 && selectedCodeIds.has(codeIds[0]) && selectedCodeIds.size === 1)
+      if (isBulkSelectionAction) {
+        setSelectedCodeIds(new Set())
+      }
+      refreshAll()
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update distribution status')
     }
   }
 
@@ -735,8 +1025,13 @@ export default function PlanCodesPage() {
         const s = getCodeStatus(c)
         if (filterStatus.toLowerCase() !== s) return false
       }
+      // Distribution Filter
+      if (filterDistributed !== 'All') {
+        if (filterDistributed === 'Distributed' && !c.is_distributed) return false
+        if (filterDistributed === 'Not Distributed' && c.is_distributed) return false
+      }
       // Plan Filter
-      if (filterPlan !== 'All' && c.plans?.name !== filterPlan) return false
+      if (filterPlan !== 'All' && c.plan_id !== Number(filterPlan)) return false
       // Company Filter
       if (filterCompany !== 'All' && c.company_id !== Number(filterCompany)) return false
       // Text Search
@@ -751,7 +1046,7 @@ export default function PlanCodesPage() {
       }
       return true
     })
-  }, [codes, filterStatus, filterPlan, filterCompany, searchQuery])
+  }, [codes, filterStatus, filterDistributed, filterPlan, filterCompany, searchQuery])
 
   if (authLoading) return <div style={{ padding: 24 }}><Spinner /></div>
 
@@ -937,31 +1232,155 @@ export default function PlanCodesPage() {
 
       {/* Section 3: Codes Table */}
       <Card>
-        <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-          <input 
-            type="text" className="og-input" placeholder="Search code, seller..." 
-            value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-            style={{ width: '100%', minWidth: 200, flex: 1 }}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          padding: '12px 16px',
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 14,
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.12)',
+          marginBottom: 20,
+          flexWrap: 'wrap'
+        }}>
+          {/* Search Input */}
+          <div style={{ position: 'relative', flex: 1, minWidth: 220, display: 'flex', alignItems: 'center' }}>
+            <Search size={14} style={{ position: 'absolute', left: 12, color: 'var(--text-muted)', pointerEvents: 'none' }} />
+            <input 
+              type="text" 
+              className="og-input" 
+              placeholder="Search code, seller, phone..." 
+              value={searchQuery} 
+              onChange={e => setSearchQuery(e.target.value)}
+              style={{
+                paddingLeft: 34,
+                paddingRight: searchQuery ? 30 : 12,
+                height: 36,
+                fontSize: 12.5,
+                background: 'var(--bg-input)',
+                borderColor: searchQuery ? 'var(--accent-blue)' : 'var(--border)',
+                borderRadius: 10,
+                color: 'var(--text-primary)'
+              }}
+            />
+            {searchQuery && (
+              <button 
+                onClick={() => setSearchQuery('')}
+                style={{
+                  position: 'absolute',
+                  right: 8,
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  padding: 2,
+                  display: 'flex',
+                  alignItems: 'center'
+                }}
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
+
+          {/* Status Filter */}
+          <CustomFilterSelect
+            icon={SlidersHorizontal}
+            label="All Statuses"
+            value={filterStatus}
+            minWidth={135}
+            options={[
+              { label: 'All Statuses', value: 'All' },
+              { label: 'Unused', value: 'Unused' },
+              { label: 'Used', value: 'Used' },
+              { label: 'Disabled', value: 'Disabled' },
+              { label: 'Expired', value: 'Expired' }
+            ]}
+            onChange={val => setFilterStatus(val)}
           />
-          <select className="og-input" value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ width: 140 }}>
-            <option value="All">All Statuses</option>
-            <option value="Unused">Unused</option>
-            <option value="Used">Used</option>
-            <option value="Disabled">Disabled</option>
-            <option value="Expired">Expired</option>
-          </select>
-          <select className="og-input" value={filterPlan} onChange={e => setFilterPlan(e.target.value)} style={{ width: 140 }}>
-            <option value="All">All Plans</option>
-            {plans.map(p => <option key={p.plan_id} value={p.name}>{p.name}</option>)}
-          </select>
-          <select className="og-input" value={filterCompany} onChange={e => setFilterCompany(e.target.value)} style={{ width: 160 }}>
-            <option value="All">All Companies</option>
-            {companies.map(comp => (
-              <option key={comp.company_id} value={comp.company_id}>{comp.name}</option>
-            ))}
-          </select>
-          <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-            Showing page {Math.floor(offset / rowsPerPage) + 1} (Total DB count: {totalCount})
+
+          {/* Distribution Filter */}
+          <CustomFilterSelect
+            icon={CheckSquare}
+            label="All Distribution"
+            value={filterDistributed}
+            minWidth={150}
+            options={[
+              { label: 'All Distribution', value: 'All' },
+              { label: 'Not Distributed', value: 'Not Distributed' },
+              { label: 'Distributed', value: 'Distributed' }
+            ]}
+            onChange={val => setFilterDistributed(val as any)}
+          />
+
+          {/* Plan Filter */}
+          <CustomFilterSelect
+            icon={Tag}
+            label="All Plans"
+            value={filterPlan}
+            minWidth={160}
+            options={[
+              { label: 'All Plans', value: 'All' },
+              ...plans.map(p => ({
+                label: `${p.name} (${p.billing_period === 'month' || p.billing_period === 'monthly' ? 'Monthly' : 'Annual'})`,
+                value: String(p.plan_id)
+              }))
+            ]}
+            onChange={val => setFilterPlan(val)}
+          />
+
+          {/* Company Filter */}
+          <CustomFilterSelect
+            icon={Building}
+            label="All Companies"
+            value={filterCompany}
+            minWidth={155}
+            options={[
+              { label: 'All Companies', value: 'All' },
+              ...companies.map(comp => ({
+                label: comp.name,
+                value: String(comp.company_id)
+              }))
+            ]}
+            onChange={val => setFilterCompany(val)}
+          />
+
+          {/* Clear Filters Button */}
+          {(filterStatus !== 'All' || filterDistributed !== 'All' || filterPlan !== 'All' || filterCompany !== 'All' || searchQuery) && (
+            <button
+              onClick={() => {
+                setFilterStatus('All')
+                setFilterDistributed('All')
+                setFilterPlan('All')
+                setFilterCompany('All')
+                setSearchQuery('')
+              }}
+              style={{
+                height: 36,
+                padding: '0 8px',
+                fontSize: 12,
+                fontWeight: 600,
+                background: 'none',
+                color: '#F87171',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                transition: 'opacity 0.2s ease',
+                outline: 'none'
+              }}
+              onMouseEnter={e => e.currentTarget.style.opacity = '0.75'}
+              onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+              title="Reset all active filters"
+            >
+              <X size={13} /> Clear
+            </button>
+          )}
+
+          <div style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 500, color: 'var(--text-muted)' }}>
+            Showing {filteredCodes.length} of {totalCount} codes
           </div>
         </div>
 
@@ -994,6 +1413,13 @@ export default function PlanCodesPage() {
                   <Ticket size={14} /> Generate Vouchers
                 </button>
                 <button 
+                  className="btn btn-primary btn-sm" 
+                  onClick={() => markCodesDistributed(Array.from(selectedCodeIds), true)}
+                  style={{ gap: 8 }}
+                >
+                  <CheckSquare size={14} /> Mark as Distributed
+                </button>
+                <button 
                   className="btn btn-ghost btn-sm" 
                   onClick={() => setSelectedCodeIds(new Set())}
                 >
@@ -1009,17 +1435,27 @@ export default function PlanCodesPage() {
                       type="checkbox" 
                       onChange={(e) => {
                         if (e.target.checked) {
-                          setSelectedCodeIds(new Set(filteredCodes.map(c => c.code_id)))
+                          const selectableIds = filteredCodes.filter(c => !c.is_distributed).map(c => c.code_id)
+                          if (selectableIds.length > 100) {
+                            toast.error("Only first 100 selected — max per batch")
+                          }
+                          setSelectedCodeIds(new Set(selectableIds.slice(0, 100)))
                         } else {
                           setSelectedCodeIds(new Set())
                         }
                       }}
-                      checked={selectedCodeIds.size === filteredCodes.length && filteredCodes.length > 0}
+                      checked={
+                        (() => {
+                          const selectableIds = filteredCodes.filter(c => !c.is_distributed).map(c => c.code_id)
+                          return selectableIds.length > 0 && selectableIds.every(id => selectedCodeIds.has(id))
+                        })()
+                      }
                     />
                   </th>
                   <th>Code</th>
                   <th>Plan & Duration</th>
                   <th>Status</th>
+                  <th>Distributed</th>
                   <th>Seller</th>
                   <th>Company</th>
                   <th>Used By</th>
@@ -1040,8 +1476,15 @@ export default function PlanCodesPage() {
                           checked={isChecked}
                           onChange={(e) => {
                             const next = new Set(selectedCodeIds)
-                            if (e.target.checked) next.add(c.code_id)
-                            else next.delete(c.code_id)
+                            if (e.target.checked) {
+                              if (next.size >= 100) {
+                                toast.error("Max 100 codes per batch")
+                              } else {
+                                next.add(c.code_id)
+                              }
+                            } else {
+                              next.delete(c.code_id)
+                            }
                             setSelectedCodeIds(next)
                           }}
                         />
@@ -1060,6 +1503,13 @@ export default function PlanCodesPage() {
                         <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{c.duration_days} days</div>
                       </td>
                       <td><StatusBadge status={status} /></td>
+                      <td>
+                        <DistributedBadge 
+                          isDistributed={c.is_distributed}
+                          distributedAt={c.distributed_at}
+                          onClick={() => markCodesDistributed([c.code_id], !c.is_distributed)}
+                        />
+                      </td>
                       <td>
                         {c.seller_name || c.seller_phone ? (
                            <>
