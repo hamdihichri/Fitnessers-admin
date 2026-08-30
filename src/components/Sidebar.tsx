@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard, Building2, Users, CreditCard, Coins,
-  Building, BarChart3, Monitor, LogOut, Dumbbell, CalendarDays, Receipt, ShieldCheck, PlusCircle, LifeBuoy, Radio, Ticket, X
+  Building, BarChart3, Monitor, LogOut, Dumbbell, CalendarDays, Receipt, ShieldCheck, PlusCircle, LifeBuoy, Radio, Ticket, X, FileText, Handshake
 } from 'lucide-react'
 import { createBrowserClient } from '@/lib/supabaseBrowser'
 import { AppIconLight } from '@/components/AppIconLight'
@@ -20,6 +20,8 @@ const NAV = [
   { href: '/payments', icon: Receipt, label: 'Payments' },
   { href: '/tokens', icon: Coins, label: 'Token Economy' },
   { href: '/community', icon: Radio, label: 'Community' },
+  { href: '/admin/blog', icon: FileText, label: 'Blog Posts', sub: true },
+  { href: '/admin/partnerships', icon: Handshake, label: 'Partnerships', sub: true },
   { href: '/analytics', icon: BarChart3, label: 'Analytics' },
   { href: '/monitoring', icon: Monitor, label: 'Monitoring' },
 ]
@@ -110,13 +112,13 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
         <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-muted)', padding: '4px 8px 8px', fontWeight: 600 }}>
           Menu
         </div>
-        {NAV.map(({ href, icon: Icon, label, badge }) => {
+        {NAV.map(({ href, icon: Icon, label, badge, sub }) => {
           const active = path === href || (href !== '/dashboard' && path.startsWith(href))
           return (
             <Link key={href} href={href} style={{ textDecoration: 'none' }} onClick={() => onClose?.()}>
-              <div className={`nav-item${active ? ' active' : ''}`}>
-                <Icon size={15} style={{ flexShrink: 0, opacity: active ? 1 : 0.7 }} />
-                <span style={{ flex: 1, fontWeight: active ? 600 : 500, fontSize: 13 }}>{label}</span>
+              <div className={`nav-item${active ? ' active' : ''}`} style={sub ? { marginLeft: 14, paddingLeft: 10, borderLeft: '2px solid var(--border)' } : undefined}>
+                <Icon size={sub ? 14 : 15} style={{ flexShrink: 0, opacity: active ? 1 : 0.7 }} />
+                <span style={{ flex: 1, fontWeight: active ? 600 : 500, fontSize: sub ? 12 : 13 }}>{label}</span>
                 {badge === 'pending' && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#F59E0B', flexShrink: 0 }} />}
               </div>
             </Link>
