@@ -873,13 +873,15 @@ export default function PlanCodesPage() {
         }
       }
 
-      const PAGE_W = 210, PAGE_H = 297
+      const PAGE_W = doc.internal.pageSize.getWidth()
+      const PAGE_H = doc.internal.pageSize.getHeight()
       const COLS = 2, ROWS = 5
       const PER_PAGE = COLS * ROWS  // 10 cards per page
 
-      // Full bleed — cards fill the entire page edge to edge, no margin, no gap
+      // Full bleed — cards fill the entire page edge to edge, slight overlap to prevent rounding gaps
       const cardW = PAGE_W / COLS
       const cardH = PAGE_H / ROWS
+      const BLEED = 0.6 // Overlap bleed to prevent sub-pixel seams on right and bottom edges
 
       // Measured on the source template: white code box under "Code D'activation" + bottom-left ID spot
       const BOX = { l: 0.054965, t: 0.491393, w: 0.451241, h: 0.120501 }
@@ -904,11 +906,6 @@ export default function PlanCodesPage() {
         }
 
         doc.setLineDashPattern([], 0) // Reset line dash
-
-        // Cover any bottom sub-pixel gap with a solid dark line matching the voucher background
-        doc.setDrawColor(15, 23, 42)
-        doc.setLineWidth(0.5)
-        doc.line(0, PAGE_H - 0.25, PAGE_W, PAGE_H - 0.25)
       }
 
       const totalPages = Math.ceil(selected.length / PER_PAGE)
@@ -952,7 +949,7 @@ export default function PlanCodesPage() {
             templateImg = isAnnual ? proAnImg : proMoisImg
           }
 
-          doc.addImage(templateImg, 'PNG', x, y, cardW, cardH + 0.4)
+          doc.addImage(templateImg, 'PNG', x, y, cardW + BLEED, cardH + BLEED)
 
           // Code, centered horizontally & vertically in the white container box under "Code D'activation"
           const boxX = x + BOX.l * cardW
@@ -999,7 +996,7 @@ export default function PlanCodesPage() {
         const x = col * cardW
         const y = row * cardH
 
-        doc.addImage(backTemplateImg, 'PNG', x, y, cardW, cardH + 0.4)
+        doc.addImage(backTemplateImg, 'PNG', x, y, cardW + BLEED, cardH + BLEED)
       }
 
       // Draw subtle inner cut lines for back page
@@ -1475,21 +1472,13 @@ export default function PlanCodesPage() {
                       type="checkbox" 
                       onChange={(e) => {
                         if (e.target.checked) {
-                          const selectableIds = filteredCodes.filter(c => !c.is_distributed).map(c => c.code_id)
-                          if (selectableIds.length > 100) {
-                            toast.error("Only first 100 selected — max per batch")
-                          }
-                          setSelectedCodeIds(new Set(selectableIds.slice(0, 100)))
+                          const selectableIds = filteredCodes.map(c => c.code_id)
+                          setSelectedCodeIds(new Set(selectableIds))
                         } else {
                           setSelectedCodeIds(new Set())
                         }
                       }}
-                      checked={
-                        (() => {
-                          const selectableIds = filteredCodes.filter(c => !c.is_distributed).map(c => c.code_id)
-                          return selectableIds.length > 0 && selectableIds.every(id => selectedCodeIds.has(id))
-                        })()
-                      }
+                      checked={filteredCodes.length > 0 && filteredCodes.every(c => selectedCodeIds.has(c.code_id))}
                     />
                   </th>
                   <th>Code</th>
@@ -1517,11 +1506,7 @@ export default function PlanCodesPage() {
                           onChange={(e) => {
                             const next = new Set(selectedCodeIds)
                             if (e.target.checked) {
-                              if (next.size >= 100) {
-                                toast.error("Max 100 codes per batch")
-                              } else {
-                                next.add(c.code_id)
-                              }
+                              next.add(c.code_id)
                             } else {
                               next.delete(c.code_id)
                             }
